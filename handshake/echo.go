@@ -3,7 +3,6 @@ package handshake
 import (
 	"encoding/binary"
 	"errors"
-	"miistream/timeoutconn"
 	"net"
 )
 
@@ -15,7 +14,7 @@ type Echo struct {
 
 func ReadEcho(conn net.Conn, sentTimestampChunk Timestamp) (*Echo, error) {
 	buffer := make([]byte, 1536)
-	err := timeoutconn.Read(conn, buffer)
+	_, err := conn.Read(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -38,5 +37,7 @@ func (echo Echo) Buffer() []byte {
 }
 
 func (echo Echo) Send(conn net.Conn) error {
-	return timeoutconn.Write(conn, echo.Buffer())
+
+	_, err := conn.Write(echo.Buffer())
+	return err
 }

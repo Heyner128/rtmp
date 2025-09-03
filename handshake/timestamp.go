@@ -3,7 +3,6 @@ package handshake
 import (
 	"encoding/binary"
 	"math/rand"
-	"miistream/timeoutconn"
 	"net"
 )
 
@@ -27,7 +26,7 @@ func GenerateTimestamp() Timestamp {
 
 func ReadTimestamp(conn net.Conn) (*Timestamp, error) {
 	buffer := make([]byte, 1536)
-	err := timeoutconn.Read(conn, buffer)
+	_, err := conn.Read(buffer)
 	if err != nil {
 		return nil, err
 	}
@@ -47,5 +46,6 @@ func (timestamp Timestamp) Buffer() []byte {
 }
 
 func (timestamp Timestamp) Send(conn net.Conn) error {
-	return timeoutconn.Write(conn, timestamp.Buffer())
+	_, err := conn.Write(timestamp.Buffer())
+	return err
 }

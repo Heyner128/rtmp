@@ -3,8 +3,11 @@ package server
 import (
 	"fmt"
 	"log"
+	"miistream/chunk"
 	"miistream/handshake"
+	"miistream/rtmpconn"
 	"net"
+	"time"
 )
 
 func Listen(address string) error {
@@ -19,16 +22,26 @@ func Listen(address string) error {
 		if err != nil {
 			log.Println("Error accepting connection", err)
 		}
-		go handleConnection(conn)
+		rtmpConn := rtmpconn.RtmpConn{
+			Conn:           conn,
+			MaxChunkSize:   128,
+			NetworkTimeout: time.Second * 10,
+		}
+		go handleConnection(&rtmpConn)
 	}
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn *rtmpconn.RtmpConn) {
 	defer conn.Close()
 	for {
 		err := handshake.Accept(conn)
 		if err != nil {
 			log.Println("Handshake failed", err)
+			return
+		}
+		err = chunk.Accept(conn)
+		if err != nil {
+			log.Println("Chunk failed", err)
 			return
 		}
 	}
