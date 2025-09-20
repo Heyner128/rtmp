@@ -12,6 +12,10 @@ type Echo struct {
 	Random     [1528]byte
 }
 
+func NewEcho(ts1 uint32, ts2 uint32, random [1528]byte) *Echo {
+	return &Echo{Timestamp: ts1, TimeStamp2: ts2, Random: random}
+}
+
 func ReadEcho(conn net.Conn, sentTimestampChunk Timestamp) (*Echo, error) {
 	buffer := make([]byte, 1536)
 	_, err := conn.Read(buffer)

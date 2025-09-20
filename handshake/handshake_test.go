@@ -1,20 +1,15 @@
 package handshake
 
 import (
-	"math/rand"
 	"net"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var address = "127.0.0.1:" + strconv.Itoa(1000+rand.Intn(9999-1000))
-
-var listener, _ = net.Listen("tcp", address)
-
-func TestMain(m *testing.M) {
-	defer listener.Close()
+func AcceptTestHandshake() string {
+	address := "127.0.0.1:0"
+	listener, _ := net.Listen("tcp", address)
 	go func() {
 		conn, _ := listener.Accept()
 		err := Accept(conn)
@@ -22,7 +17,7 @@ func TestMain(m *testing.M) {
 			panic(err)
 		}
 	}()
-	m.Run()
+	return listener.Addr().String()
 }
 
 func TestGenerateTimestampChunk(t *testing.T) {
@@ -32,11 +27,44 @@ func TestGenerateTimestampChunk(t *testing.T) {
 }
 
 func TestHandshake(t *testing.T) {
-	handshake, err := Request(address)
+	address := AcceptTestHandshake()
+	conn, _ := net.Dial("tcp", address)
+	hs, err := Request(conn)
 	assert.Nil(t, err)
-	assert.Equal(t, uint8(3), handshake.ServerVersion.Version)
-	assert.Equal(t, uint32(0), handshake.ServerTimestamp.Timestamp)
-	assert.Equal(t, uint32(0), handshake.ServerTimestamp.Zero)
-	assert.Equal(t, handshake.ClientTimestamp.Timestamp, handshake.ServerEcho.Timestamp)
-	assert.Equal(t, handshake.ServerTimestamp.Random, handshake.ClientEcho.Random)
+	// Use constructor to create expected version for assertion context
+	expectedServerVersion := NewVersion(3)
+	assert.Equal(t, expectedServerVersion.Version, hs.ServerVersion.Version)
+	assert.Equal(t, uint32(0), hs.ServerTimestamp.Timestamp)
+	assert.Equal(t, uint32(0), hs.ServerTimestamp.Zero)
+	assert.Equal(t, hs.ClientTimestamp.Timestamp, hs.ServerEcho.Timestamp)
+	assert.Equal(t, hs.ServerTimestamp.Random, hs.ClientEcho.Random)
+}
+
+func TestConstructors(t *testing.T) {
+	// Prepare a deterministic random array for tests
+	var rnd [1528]byte
+	for i := range rnd {
+		rnd[i] = byte(i % 251)
+	}
+
+	v := NewVersion(7)
+	assert.Equal(t, uint8(7), v.Version)
+
+	ts := NewTimestamp(10, 20, rnd)
+	assert.Equal(t, uint32(10), ts.Timestamp)
+	assert.Equal(t, uint32(20), ts.Zero)
+	assert.Equal(t, rnd, ts.Random)
+
+	e := NewEcho(30, 40, rnd)
+	assert.Equal(t, uint32(30), e.Timestamp)
+	assert.Equal(t, uint32(40), e.TimeStamp2)
+	assert.Equal(t, rnd, e.Random)
+
+	h := NewHandshake(v, v, ts, ts, e, e)
+	assert.Equal(t, v, h.ClientVersion)
+	assert.Equal(t, v, h.ServerVersion)
+	assert.Equal(t, ts, h.ClientTimestamp)
+	assert.Equal(t, ts, h.ServerTimestamp)
+	assert.Equal(t, e, h.ClientEcho)
+	assert.Equal(t, e, h.ServerEcho)
 }

@@ -2,7 +2,8 @@ package chunk
 
 import (
 	"encoding/binary"
-	"miistream/rtmpconn"
+	"fmt"
+	"rtmp/rtmpconn"
 )
 
 type Chunk struct {
@@ -10,127 +11,39 @@ type Chunk struct {
 	Data   []byte
 }
 
-type Header struct {
-	basicHeader   BasicHeader   // 1 to 3 bytes
-	messageHeader MessageHeader // 0, 3, 7 or 11 bytes
-}
-
-type BasicHeader struct {
-	fmt           uint8
-	chunkStreamId uint32
-}
-
-type MessageHeader struct {
-	timestamp       uint32
-	messageLength   uint32
-	messageTypeId   uint8
-	messageStreamId uint32
+func NewChunk(header Header, data []byte) *Chunk {
+	return &Chunk{
+		Header: header,
+		Data:   data,
+	}
 }
 
 func Accept(conn *rtmpconn.RtmpConn) error {
-	_, err := ReadChunk(conn)
+	chunk, err := ReadChunk(conn)
+	if err == nil {
+		fmt.Printf("chunk received, fmt: %d - message type id: %d\n", chunk.Header.basicHeader.fmt, chunk.Header.messageHeader.messageTypeId)
+	}
 	return err
 }
 
 func ReadChunk(conn *rtmpconn.RtmpConn) (*Chunk, error) {
-	fmt, chunkStreamId, err := ReadBasicHeader(conn)
+	header, err := ReadHeader(conn)
 	if err != nil {
 		return nil, err
 	}
-	timestampBuffer := make([]byte, 3)
-	_, err = conn.Read(timestampBuffer)
-	// Type 0 chunk
-	if *fmt == uint8(0) {
-		messageLengthBuffer := make([]byte, 3)
-		_, err = conn.Read(messageLengthBuffer)
-		if err != nil {
-			return nil, err
-		}
-		messageTypeIdBuffer := make([]byte, 1)
-		_, err = conn.Read(messageTypeIdBuffer)
-		if err != nil {
-			return nil, err
-		}
-		messageStreamIdBuffer := make([]byte, 4)
-		_, err = conn.Read(messageStreamIdBuffer)
-		if err != nil {
-			return nil, err
-		}
-		extendedTimestampBuffer := make([]byte, 0)
-		if binary.BigEndian.Uint32(append([]byte{0x00}, timestampBuffer...)) == 16777215 {
-			extendedTimestampBuffer = make([]byte, 4)
-			_, err = conn.Read(extendedTimestampBuffer)
-			if err != nil {
-				return nil, err
-			}
-		}
-		// here is not max it depends on how much data is left to finish the current message
-		data := make(
-			[]byte,
-			conn.MaxChunkSize,
-		)
-		_, err = conn.Read(data)
-		if err != nil {
-			return nil, err
-		}
-		timestamp := uint32(0)
-		if len(extendedTimestampBuffer) > 0 {
-			timestamp = binary.BigEndian.Uint32(extendedTimestampBuffer)
-		} else {
-			timestamp = binary.BigEndian.Uint32(append([]byte{0x00}, timestampBuffer...))
-		}
-		return &Chunk{
-			Header: Header{
-				basicHeader: BasicHeader{
-					fmt:           *fmt,
-					chunkStreamId: *chunkStreamId,
-				},
-				messageHeader: MessageHeader{
-					timestamp:       timestamp,
-					messageLength:   binary.BigEndian.Uint32(append([]byte{0x00}, messageLengthBuffer...)),
-					messageTypeId:   messageTypeIdBuffer[0],
-					messageStreamId: binary.BigEndian.Uint32(messageStreamIdBuffer),
-				},
-			},
-			Data: data,
-		}, nil
-	}
-	return &Chunk{}, nil
-}
-
-func ReadBasicHeader(conn *rtmpconn.RtmpConn) (*uint8, *uint32, error) {
-	firstByte := make([]byte, 1)
-	chunkStreamIdBuffer := make([]byte, 0)
-	_, err := conn.Read(firstByte)
+	// here is not max it depends on how much data is left to finish the current message
+	data := make(
+		[]byte,
+		conn.MaxChunkSize,
+	)
+	_, err = conn.Read(data)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	chunkStreamIdBuffer = []byte{firstByte[0] & 0x3F}
-	fmt := (firstByte[0] & 0xC0) >> 6
-	chunkStreamId := uint32(chunkStreamIdBuffer[0])
-	if chunkStreamIdBuffer[0] == 0x00 {
-		secondByte := make([]byte, 1)
-		_, err := conn.Read(secondByte)
-		if err != nil {
-			return &fmt, nil, err
-		}
-		chunkStreamIdBuffer = binary.BigEndian.AppendUint32(make([]byte, 0), uint32(secondByte[0])+64)[1:]
-		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00, 0x00}, chunkStreamIdBuffer...))
-	} else if chunkStreamIdBuffer[0] == 0x01 {
-		secondByte := make([]byte, 1)
-		_, err := conn.Read(secondByte)
-		if err != nil {
-			return &fmt, nil, err
-		}
-		thirdByte := make([]byte, 1)
-		_, err = conn.Read(thirdByte)
-		if err != nil {
-			return &fmt, nil, err
-		}
-		chunkStreamIdBuffer = binary.BigEndian.AppendUint32(make([]byte, 0), uint32(thirdByte[0])*256+uint32(secondByte[0])+64)[1:]
-		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00}, chunkStreamIdBuffer...))
-	}
-	return &fmt, &chunkStreamId, nil
+	return &Chunk{
+		Header: *header,
+		Data:   data,
+	}, nil
 }
 
 func (chunk Chunk) Buffer() []byte {
@@ -151,7 +64,7 @@ func (chunk Chunk) Buffer() []byte {
 	extendedTimeStamp := make([]byte, 0)
 	if chunk.Header.messageHeader.timestamp >= 16777215 {
 		messageHeader = append(messageHeader, []byte{0xFF, 0xFF, 0xFF}...)
-		extendedTimeStamp = binary.BigEndian.AppendUint32(extendedTimeStamp, chunk.Header.messageHeader.timestamp)
+		extendedTimeStamp = binary.BigEndian.AppendUint32(extendedTimeStamp, chunk.Header.extendedTimestamp)
 	} else {
 		messageHeader = append(messageHeader, binary.BigEndian.AppendUint32(make([]byte, 0), chunk.Header.messageHeader.timestamp)[1:]...)
 	}

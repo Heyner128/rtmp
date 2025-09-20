@@ -1,4 +1,4 @@
-module miistream
+module rtmp
 
 go 1.24
 

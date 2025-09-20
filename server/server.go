@@ -3,46 +3,77 @@ package server
 import (
 	"fmt"
 	"log"
-	"miistream/chunk"
-	"miistream/handshake"
-	"miistream/rtmpconn"
 	"net"
+	"rtmp/chunk"
+	"rtmp/handshake"
+	"rtmp/rtmpconn"
 	"time"
 )
 
-func Listen(address string) error {
+type RtmpServer struct {
+	DefaultMaxChunkSize   uint32
+	DefaultNetworkTimeout time.Duration
+	errors                chan error
+	listener              net.Listener
+}
+
+func NewRtmpServer(address string) *RtmpServer {
 	listener, err := net.Listen("tcp", address)
 	if err != nil {
-		return fmt.Errorf("failed to start rtmp server: %s", err)
+		panic(fmt.Errorf("failed to start rtmp server: %s", err))
 	}
-	defer listener.Close()
-	log.Println("rtmp server started")
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			log.Println("Error accepting connection", err)
-		}
-		rtmpConn := rtmpconn.RtmpConn{
-			Conn:           conn,
-			MaxChunkSize:   128,
-			NetworkTimeout: time.Second * 10,
-		}
-		go handleConnection(&rtmpConn)
+
+	return &RtmpServer{
+		DefaultMaxChunkSize:   128,
+		DefaultNetworkTimeout: time.Second * 10,
+		errors:                make(chan error),
+		listener:              listener,
 	}
 }
 
-func handleConnection(conn *rtmpconn.RtmpConn) {
-	defer conn.Close()
-	for {
-		err := handshake.Accept(conn)
+func (server *RtmpServer) Accept() {
+	log.Println("rtmp server started")
+	defer func(listener net.Listener) {
+		err := listener.Close()
 		if err != nil {
-			log.Println("Handshake failed", err)
-			return
+			panic(fmt.Errorf("error closing listener: %s", err))
 		}
+	}(server.listener)
+	for {
+		conn, err := server.listener.Accept()
+		if err != nil {
+			log.Println("Error accepting connection", err)
+			server.errors <- err
+			continue
+		}
+		rtmpConn := rtmpconn.NewRtmpConn(conn, server.DefaultMaxChunkSize, server.DefaultNetworkTimeout)
+		go func() {
+			err := handleConnection(rtmpConn)
+			if err != nil {
+				log.Println("Error handling connection", err)
+				server.errors <- err
+			}
+		}()
+	}
+}
+
+func handleConnection(conn *rtmpconn.RtmpConn) error {
+	defer func(conn *rtmpconn.RtmpConn) {
+		err := conn.Close()
+		if err != nil {
+			log.Println("Error closing connection", err)
+		}
+	}(conn)
+	err := handshake.Accept(conn)
+	if err != nil {
+		log.Println("Handshake failed", err)
+		return err
+	}
+	for {
 		err = chunk.Accept(conn)
 		if err != nil {
-			log.Println("Chunk failed", err)
-			return
+			log.Println("Chunk reading failed", err)
+			return err
 		}
 	}
 }

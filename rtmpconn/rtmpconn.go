@@ -11,6 +11,14 @@ type RtmpConn struct {
 	NetworkTimeout time.Duration
 }
 
+func NewRtmpConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) *RtmpConn {
+	return &RtmpConn{
+		Conn:           conn,
+		MaxChunkSize:   maxChunkSize,
+		NetworkTimeout: networkTimeout,
+	}
+}
+
 func (rtmpConn RtmpConn) LocalAddr() net.Addr {
 	return rtmpConn.Conn.LocalAddr()
 }

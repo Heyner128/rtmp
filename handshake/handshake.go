@@ -7,12 +7,23 @@ import (
 )
 
 type Handshake struct {
-	ClientVersion   Version
-	ServerVersion   Version
-	ClientTimestamp Timestamp
-	ServerTimestamp Timestamp
-	ClientEcho      Echo
-	ServerEcho      Echo
+	ClientVersion   *Version
+	ServerVersion   *Version
+	ClientTimestamp *Timestamp
+	ServerTimestamp *Timestamp
+	ClientEcho      *Echo
+	ServerEcho      *Echo
+}
+
+func NewHandshake(clientVersion *Version, serverVersion *Version, clientTimestamp *Timestamp, serverTimestamp *Timestamp, clientEcho *Echo, serverEcho *Echo) *Handshake {
+	return &Handshake{
+		ClientVersion:   clientVersion,
+		ServerVersion:   serverVersion,
+		ClientTimestamp: clientTimestamp,
+		ServerTimestamp: serverTimestamp,
+		ClientEcho:      clientEcho,
+		ServerEcho:      serverEcho,
+	}
 }
 
 func Accept(conn net.Conn) error {
@@ -58,15 +69,10 @@ func Accept(conn net.Conn) error {
 	return nil
 }
 
-func Request(address string) (*Handshake, error) {
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return nil, err
-	}
-	defer conn.Close()
+func Request(conn net.Conn) (*Handshake, error) {
 	// sends C0 and C1
-	clientVersion := Version{Version: 1}
-	err = clientVersion.Send(conn)
+	clientVersion := &Version{Version: 1}
+	err := clientVersion.Send(conn)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +93,7 @@ func Request(address string) (*Handshake, error) {
 	}
 	serverTimestampReadingTimeInMs := time.Since(start).Milliseconds()
 	// sends C2
-	clientEcho := Echo{
+	clientEcho := &Echo{
 		Timestamp:  serverTimestamp.Timestamp,
 		TimeStamp2: uint32(uint64(serverTimestamp.Timestamp) + uint64(serverTimestampReadingTimeInMs)),
 		Random:     serverTimestamp.Random,
@@ -103,10 +109,10 @@ func Request(address string) (*Handshake, error) {
 	}
 	return &Handshake{
 		ClientVersion:   clientVersion,
-		ServerVersion:   *serverVersion,
-		ClientTimestamp: clientTimestamp,
-		ServerTimestamp: *serverTimestamp,
+		ServerVersion:   serverVersion,
+		ClientTimestamp: &clientTimestamp,
+		ServerTimestamp: serverTimestamp,
 		ClientEcho:      clientEcho,
-		ServerEcho:      *serverEcho,
+		ServerEcho:      serverEcho,
 	}, nil
 }

@@ -8,6 +8,10 @@ type Version struct {
 	Version uint8
 }
 
+func NewVersion(version uint8) *Version {
+	return &Version{Version: version}
+}
+
 func ReadVersion(conn net.Conn) (*Version, error) {
 	buffer := make([]byte, 1)
 	_, err := conn.Read(buffer)

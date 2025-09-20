@@ -12,6 +12,10 @@ type Timestamp struct {
 	Random    [1528]byte
 }
 
+func NewTimestamp(ts uint32, zero uint32, random [1528]byte) *Timestamp {
+	return &Timestamp{Timestamp: ts, Zero: zero, Random: random}
+}
+
 func GenerateTimestamp() Timestamp {
 	timestamp := new(Timestamp)
 	timestamp.Timestamp = uint32(0)
