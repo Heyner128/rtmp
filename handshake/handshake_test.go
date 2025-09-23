@@ -14,7 +14,7 @@ func TestGenerateTimestamp(t *testing.T) {
 }
 
 func TestHandshake(t *testing.T) {
-	address := AcceptTestHandshake(t)
+	address := acceptTestHandshake(t)
 	conn, _ := net.Dial("tcp", address)
 	hs, err := RequestTestHandshake(t, conn)
 	assert.Nil(t, err)

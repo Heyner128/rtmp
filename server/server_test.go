@@ -65,7 +65,7 @@ func TestServerReceivesMultipleChunks(t *testing.T) {
 			),
 			[]byte("test"),
 		)
-		_, err := conn.Write(chunk.GetChunkBuffer(t, *chunkSent))
+		_, err := conn.Write(chunkSent.Buffer(t))
 		assert.Nil(t, err)
 		select {
 		case serverConn := <-server.Connections:

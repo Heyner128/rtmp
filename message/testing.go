@@ -9,7 +9,7 @@ import (
 func SendMessage(t *testing.T, message Message, conn rtmpconn.RtmpConn) error {
 	t.Helper()
 	for _, nChunk := range GetMessageChunks(t, message, int(conn.MaxChunkSize)) {
-		_, err := conn.Write(chunk.GetChunkBuffer(t, nChunk))
+		_, err := conn.Write(nChunk.Buffer(t))
 		if err != nil {
 			return err
 		}

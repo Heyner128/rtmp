@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func AcceptTestHandshake(t *testing.T) string {
+func acceptTestHandshake(t *testing.T) string {
 	t.Helper()
 	address := "127.0.0.1:0"
 	listener, _ := net.Listen("tcp", address)

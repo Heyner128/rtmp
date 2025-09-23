@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func AcceptTestChunk(t *testing.T) (string, chan Chunk) {
+func acceptChunk(t *testing.T) (string, chan Chunk) {
 	t.Helper()
 	address := "127.0.0.1:0"
 
@@ -35,7 +35,7 @@ func AcceptTestChunk(t *testing.T) (string, chan Chunk) {
 	return listener.Addr().String(), chunks
 }
 
-func GetChunkBuffer(t *testing.T, chunk Chunk) []byte {
+func (chunk *Chunk) Buffer(t *testing.T) []byte {
 	t.Helper()
 	buffer := make([]byte, 0)
 	//basic header
