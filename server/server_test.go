@@ -11,18 +11,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func StartTestServer() *RtmpServer {
-	address := "127.0.0.1:0"
-	server := NewRtmpServer(address)
-	go func() {
-		server.Accept()
-	}()
-	return server
-}
-
 func TestStartServer(t *testing.T) {
-	server := StartTestServer()
-	_, err := net.Dial("tcp", server.listener.Addr().String())
+	server := StartTestingServer(t)
+	_, err := net.Dial("tcp", server.Listener.Addr().String())
 	assert.Nil(t, err)
 }
 
@@ -42,32 +33,29 @@ func TestServerDefaultSettings(t *testing.T) {
 }
 
 func TestServerNetworkTimeout(t *testing.T) {
-	server := StartTestServer()
+	server := StartTestingServer(t)
 	server.DefaultNetworkTimeout = 1 * time.Second
-	conn, _ := net.Dial("tcp", server.listener.Addr().String())
+	conn, _ := net.Dial("tcp", server.Listener.Addr().String())
 	_, err := conn.Write([]byte("test"))
 	assert.Nil(t, err)
+	serverConn := <-server.Connections
 	time.Sleep(2 * time.Second)
-	err = <-server.errors
+	err = <-serverConn.Errors
 	assert.NotNil(t, err)
 }
 
 func TestServerOneConnectionOnlyOneHandshake(t *testing.T) {
-	server := StartTestServer()
-	conn, err := net.Dial("tcp", server.listener.Addr().String())
+	server := StartTestingServer(t)
+	conn, err := net.Dial("tcp", server.Listener.Addr().String())
 	assert.Nil(t, err)
-	_, err = handshake.Request(conn)
+	_, err = handshake.RequestTestHandshake(t, conn)
 	assert.Nil(t, err)
-	_, err = handshake.Request(conn)
+	_, err = handshake.RequestTestHandshake(t, conn)
 	assert.NotNil(t, err)
 }
 
 func TestServerReceivesMultipleChunks(t *testing.T) {
-	server := StartTestServer()
-	conn, err := net.Dial("tcp", server.listener.Addr().String())
-	assert.Nil(t, err)
-	_, err = handshake.Request(conn)
-	assert.Nil(t, err)
+	server, conn := StartTestingServerWithHandshake(t)
 	for i := range 10 {
 		chunkSent := chunk.NewChunk(
 			*chunk.NewHeader(
@@ -77,14 +65,17 @@ func TestServerReceivesMultipleChunks(t *testing.T) {
 			),
 			[]byte("test"),
 		)
-		_, err = conn.Write(chunkSent.Buffer())
+		_, err := conn.Write(chunk.GetChunkBuffer(t, *chunkSent))
 		assert.Nil(t, err)
 		select {
-		case err = <-server.errors:
-			assert.Nil(t, err)
+		case serverConn := <-server.Connections:
+			select {
+			case err = <-serverConn.Errors:
+				assert.Nil(t, err)
+			case <-time.After(10 * time.Millisecond):
+			}
 		case <-time.After(10 * time.Millisecond):
-			// No error received within timeout, assume success
 		}
-		fmt.Printf("Chunk: %d/n", i)
+		fmt.Printf("Chunk: %d\n", i)
 	}
 }

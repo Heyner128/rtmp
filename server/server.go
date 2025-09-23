@@ -13,8 +13,8 @@ import (
 type RtmpServer struct {
 	DefaultMaxChunkSize   uint32
 	DefaultNetworkTimeout time.Duration
-	errors                chan error
-	listener              net.Listener
+	Connections           chan rtmpconn.RtmpConn
+	Listener              net.Listener
 }
 
 func NewRtmpServer(address string) *RtmpServer {
@@ -26,8 +26,8 @@ func NewRtmpServer(address string) *RtmpServer {
 	return &RtmpServer{
 		DefaultMaxChunkSize:   128,
 		DefaultNetworkTimeout: time.Second * 10,
-		errors:                make(chan error),
-		listener:              listener,
+		Listener:              listener,
+		Connections:           make(chan rtmpconn.RtmpConn, 1),
 	}
 }
 
@@ -38,20 +38,16 @@ func (server *RtmpServer) Accept() {
 		if err != nil {
 			panic(fmt.Errorf("error closing listener: %s", err))
 		}
-	}(server.listener)
+	}(server.Listener)
 	for {
-		conn, err := server.listener.Accept()
-		if err != nil {
-			log.Println("Error accepting connection", err)
-			server.errors <- err
-			continue
-		}
+		conn, _ := server.Listener.Accept()
 		rtmpConn := rtmpconn.NewRtmpConn(conn, server.DefaultMaxChunkSize, server.DefaultNetworkTimeout)
+		server.Connections <- *rtmpConn
 		go func() {
 			err := handleConnection(rtmpConn)
 			if err != nil {
 				log.Println("Error handling connection", err)
-				server.errors <- err
+				rtmpConn.Errors <- err
 			}
 		}()
 	}
@@ -70,7 +66,7 @@ func handleConnection(conn *rtmpconn.RtmpConn) error {
 		return err
 	}
 	for {
-		err = chunk.Accept(conn)
+		_, err = chunk.Accept(conn)
 		if err != nil {
 			log.Println("Chunk reading failed", err)
 			return err

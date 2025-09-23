@@ -6,16 +6,16 @@ import (
 )
 
 type Header struct {
-	basicHeader       BasicHeader   // 1 to 3 bytes
-	messageHeader     MessageHeader // 0, 3, 7 or 11 bytes
-	extendedTimestamp uint32
+	BasicHeader       BasicHeader   // 1 to 3 bytes
+	MessageHeader     MessageHeader // 0, 3, 7 or 11 bytes
+	ExtendedTimestamp uint32
 }
 
 func NewHeader(basicHeader BasicHeader, messageHeader MessageHeader, extendedTimestamp uint32) *Header {
 	return &Header{
-		basicHeader:       basicHeader,
-		messageHeader:     messageHeader,
-		extendedTimestamp: extendedTimestamp,
+		BasicHeader:       basicHeader,
+		MessageHeader:     messageHeader,
+		ExtendedTimestamp: extendedTimestamp,
 	}
 }
 
@@ -30,7 +30,7 @@ func ReadHeader(conn *rtmpconn.RtmpConn) (*Header, error) {
 	}
 	var extendedTimestamp uint32
 	extendedTimestampBuffer := make([]byte, 0)
-	if messageHeader.timestamp >= 16777215 {
+	if messageHeader.Timestamp >= 16777215 {
 		extendedTimestampBuffer = make([]byte, 4)
 		_, err = conn.Read(extendedTimestampBuffer)
 		if err != nil {
@@ -42,14 +42,14 @@ func ReadHeader(conn *rtmpconn.RtmpConn) (*Header, error) {
 }
 
 type BasicHeader struct {
-	fmt           uint8
-	chunkStreamId uint32
+	Fmt           uint8
+	ChunkStreamId uint32
 }
 
 func NewBasicHeader(fmt uint8, chunkStreamId uint32) *BasicHeader {
 	return &BasicHeader{
-		fmt:           fmt,
-		chunkStreamId: chunkStreamId,
+		Fmt:           fmt,
+		ChunkStreamId: chunkStreamId,
 	}
 }
 
@@ -86,24 +86,24 @@ func ReadBasicHeader(conn *rtmpconn.RtmpConn) (*BasicHeader, error) {
 		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00}, chunkStreamIdBuffer...))
 	}
 	return &BasicHeader{
-		fmt:           fmt,
-		chunkStreamId: chunkStreamId,
+		Fmt:           fmt,
+		ChunkStreamId: chunkStreamId,
 	}, nil
 }
 
 type MessageHeader struct {
-	timestamp       uint32
-	messageLength   uint32
-	messageTypeId   uint8
-	messageStreamId uint32
+	Timestamp       uint32
+	MessageLength   uint32
+	MessageTypeId   uint8
+	MessageStreamId uint32
 }
 
 func NewMessageHeader(timestamp uint32, messageLength uint32, messageTypeId uint8, messageStreamId uint32) *MessageHeader {
 	return &MessageHeader{
-		timestamp:       timestamp,
-		messageLength:   messageLength,
-		messageTypeId:   messageTypeId,
-		messageStreamId: messageStreamId,
+		Timestamp:       timestamp,
+		MessageLength:   messageLength,
+		MessageTypeId:   messageTypeId,
+		MessageStreamId: messageStreamId,
 	}
 }
 
@@ -120,10 +120,10 @@ func ReadMessageHeader(conn *rtmpconn.RtmpConn, basicHeader BasicHeader) (*Messa
 	if err != nil {
 		return nil, err
 	}
-	if basicHeader.fmt <= 2 {
+	if basicHeader.Fmt <= 2 {
 		timestamp = binary.BigEndian.Uint32(append([]byte{0x00}, timestampBuffer...))
 	}
-	if basicHeader.fmt <= 1 {
+	if basicHeader.Fmt <= 1 {
 		messageLengthBuffer = make([]byte, 3)
 		_, err := conn.Read(messageLengthBuffer)
 		if err != nil {
@@ -137,7 +137,7 @@ func ReadMessageHeader(conn *rtmpconn.RtmpConn, basicHeader BasicHeader) (*Messa
 		}
 		messageTypeId = messageTypeIdBuffer[0]
 	}
-	if basicHeader.fmt == 0 {
+	if basicHeader.Fmt == 0 {
 		messageStreamIdBuffer = make([]byte, 4)
 		_, err := conn.Read(messageStreamIdBuffer)
 		if err != nil {
@@ -146,9 +146,9 @@ func ReadMessageHeader(conn *rtmpconn.RtmpConn, basicHeader BasicHeader) (*Messa
 		messageStreamId = binary.LittleEndian.Uint32(messageStreamIdBuffer)
 	}
 	return &MessageHeader{
-		timestamp:       timestamp,
-		messageLength:   messageLength,
-		messageTypeId:   messageTypeId,
-		messageStreamId: messageStreamId,
+		Timestamp:       timestamp,
+		MessageLength:   messageLength,
+		MessageTypeId:   messageTypeId,
+		MessageStreamId: messageStreamId,
 	}, nil
 }
