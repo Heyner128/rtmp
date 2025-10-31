@@ -5,20 +5,25 @@ import (
 	"time"
 )
 
-type PartialMessage struct {
-	MessageLength   uint32
-	MessageTypeId   uint8
-	MessageStreamId uint32
-	Data            []byte
+type Message struct {
+	Length   uint32
+	TypeId   uint8
+	StreamId uint32
+	Data     []byte
+}
+
+func (message *Message) DataSize() uint32 {
+	return uint32(len(message.Data))
 }
 
 type RtmpConn struct {
-	Conn           net.Conn
-	MaxChunkSize   uint32
-	NetworkTimeout time.Duration
-	CurrentMessage PartialMessage
-	Messages       chan PartialMessage
-	Errors         chan error
+	Conn                      net.Conn
+	MaxChunkSize              uint32
+	NetworkTimeout            time.Duration
+	CurrentMessage            *Message
+	Messages                  chan *Message
+	WindowAcknowledgementSize uint32
+	Errors                    chan error
 }
 
 func NewRtmpConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) *RtmpConn {
@@ -26,7 +31,8 @@ func NewRtmpConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duratio
 		Conn:           conn,
 		MaxChunkSize:   maxChunkSize,
 		NetworkTimeout: networkTimeout,
-		Messages:       make(chan PartialMessage, 1),
+		CurrentMessage: &Message{},
+		Messages:       make(chan *Message, 1),
 		Errors:         make(chan error),
 	}
 }

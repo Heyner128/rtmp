@@ -13,7 +13,7 @@ import (
 type RtmpServer struct {
 	DefaultMaxChunkSize   uint32
 	DefaultNetworkTimeout time.Duration
-	Connections           chan rtmpconn.RtmpConn
+	Connections           chan *rtmpconn.RtmpConn
 	Listener              net.Listener
 }
 
@@ -27,7 +27,7 @@ func NewRtmpServer(address string) *RtmpServer {
 		DefaultMaxChunkSize:   128,
 		DefaultNetworkTimeout: time.Second * 10,
 		Listener:              listener,
-		Connections:           make(chan rtmpconn.RtmpConn, 1),
+		Connections:           make(chan *rtmpconn.RtmpConn, 1),
 	}
 }
 
@@ -42,7 +42,7 @@ func (server *RtmpServer) Accept() {
 	for {
 		conn, _ := server.Listener.Accept()
 		rtmpConn := rtmpconn.NewRtmpConn(conn, server.DefaultMaxChunkSize, server.DefaultNetworkTimeout)
-		server.Connections <- *rtmpConn
+		server.Connections <- rtmpConn
 		go func() {
 			err := handleConnection(rtmpConn)
 			if err != nil {
@@ -70,6 +70,12 @@ func handleConnection(conn *rtmpconn.RtmpConn) error {
 		if err != nil {
 			log.Println("Chunk reading failed", err)
 			return err
+		}
+		if conn.CurrentMessage == nil {
+			err = conn.Close()
+			if err != nil {
+				return err
+			}
 		}
 	}
 }

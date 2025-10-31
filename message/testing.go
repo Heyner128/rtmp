@@ -1,14 +1,29 @@
 package message
 
 import (
+	"math/rand"
 	"rtmp/chunk"
 	"rtmp/rtmpconn"
 	"testing"
 )
 
-func SendMessage(t *testing.T, message Message, conn rtmpconn.RtmpConn) error {
+type Message struct {
+	MessageTypeId   uint8
+	MessageStreamId uint32
+	Data            []byte
+}
+
+func NewMessage(messageTypeId uint8, messageStreamId uint32, data []byte) *Message {
+	return &Message{
+		MessageTypeId:   messageTypeId,
+		MessageStreamId: messageStreamId,
+		Data:            data,
+	}
+}
+
+func (message *Message) Send(t *testing.T, conn rtmpconn.RtmpConn) error {
 	t.Helper()
-	for _, nChunk := range GetMessageChunks(t, message, int(conn.MaxChunkSize)) {
+	for _, nChunk := range message.Chunks(t, int(conn.MaxChunkSize)) {
 		_, err := conn.Write(nChunk.Buffer(t))
 		if err != nil {
 			return err
@@ -17,11 +32,11 @@ func SendMessage(t *testing.T, message Message, conn rtmpconn.RtmpConn) error {
 	return nil
 }
 
-func GetMessageChunks(t *testing.T, message Message, chunkSize int) []chunk.Chunk {
+func (message *Message) Chunks(t *testing.T, chunkSize int) []chunk.Chunk {
 	t.Helper()
 	numberOfChunks := len(message.Data) / chunkSize
 	chunks := make([]chunk.Chunk, 0)
-	for i := range numberOfChunks {
+	for i := range numberOfChunks + 1 {
 		var basicHeader chunk.BasicHeader
 		var messageHeader chunk.MessageHeader
 		if i == 0 {
@@ -42,7 +57,7 @@ func GetMessageChunks(t *testing.T, message Message, chunkSize int) []chunk.Chun
 func generateRandomBytes(length int) []byte {
 	bytes := make([]byte, length)
 	for i := 0; i < length; i++ {
-		bytes[i] = byte(i)
+		bytes[i] = byte(rand.Intn(255))
 	}
 	return bytes
 }

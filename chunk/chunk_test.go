@@ -91,3 +91,7 @@ func TestChunkExtendedTimestamp(t *testing.T) {
 	assert.Equal(t, chunkReceived.Header.MessageHeader.Timestamp, uint32(0xffffff))
 	assert.Equal(t, chunkReceived.Header.ExtendedTimestamp, chunk.Header.ExtendedTimestamp)
 }
+
+// TODO test message type id 2
+
+// TODO test message type id 5
