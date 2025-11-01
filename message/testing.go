@@ -13,7 +13,7 @@ type Message struct {
 	Data            []byte
 }
 
-func NewMessage(messageTypeId uint8, messageStreamId uint32, data []byte) *Message {
+func newMessage(messageTypeId uint8, messageStreamId uint32, data []byte) *Message {
 	return &Message{
 		MessageTypeId:   messageTypeId,
 		MessageStreamId: messageStreamId,
@@ -24,7 +24,7 @@ func NewMessage(messageTypeId uint8, messageStreamId uint32, data []byte) *Messa
 func (message *Message) Send(t *testing.T, conn rtmpconn.RtmpConn) error {
 	t.Helper()
 	for _, nChunk := range message.Chunks(t, int(conn.MaxChunkSize)) {
-		_, err := conn.Write(nChunk.Buffer(t))
+		_, err := conn.Write(nChunk.Encode(t))
 		if err != nil {
 			return err
 		}

@@ -18,7 +18,7 @@ func TestHandshake(t *testing.T) {
 	conn, _ := net.Dial("tcp", address)
 	hs, err := RequestTestHandshake(t, conn)
 	assert.Nil(t, err)
-	expectedServerVersion := NewVersion(3)
+	expectedServerVersion := newVersion(3)
 	assert.Equal(t, expectedServerVersion.Version, hs.ServerVersion.Version)
 	assert.Equal(t, uint32(0), hs.ServerTimestamp.Timestamp)
 	assert.Equal(t, uint32(0), hs.ServerTimestamp.Zero)

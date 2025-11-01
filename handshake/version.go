@@ -8,7 +8,7 @@ type Version struct {
 	Version uint8
 }
 
-func NewVersion(version uint8) *Version {
+func newVersion(version uint8) *Version {
 	return &Version{Version: version}
 }
 
@@ -23,11 +23,11 @@ func ReadVersion(conn net.Conn) (*Version, error) {
 	}, nil
 }
 
-func (version Version) Buffer() []byte {
+func (version Version) Encode() []byte {
 	return []byte{version.Version}
 }
 
 func (version Version) Send(conn net.Conn) error {
-	_, err := conn.Write(version.Buffer())
+	_, err := conn.Write(version.Encode())
 	return err
 }

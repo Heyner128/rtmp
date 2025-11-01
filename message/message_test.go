@@ -10,7 +10,7 @@ import (
 
 func TestMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
-	message := NewMessage(uint8(9), uint32(123456), generateRandomBytes(1024))
+	message := newMessage(uint8(9), uint32(123456), generateRandomBytes(1024))
 	err := message.Send(t, clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
@@ -27,8 +27,8 @@ func TestMessageReceived(t *testing.T) {
 func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
 	newSize := uint32(100)
-	setSizeMessage := NewMessage(uint8(1), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
-	randomDataMessage := NewMessage(uint8(9), uint32(123456), generateRandomBytes(120))
+	setSizeMessage := newMessage(uint8(1), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	randomDataMessage := newMessage(uint8(9), uint32(123456), generateRandomBytes(120))
 	err := setSizeMessage.Send(t, clientConn)
 	clientConn.MaxChunkSize = newSize
 	assert.Nil(t, err)
@@ -50,7 +50,7 @@ func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 func TestSetChunkSizeMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
 	newSize := uint32(1024)
-	message := NewMessage(uint8(1), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	message := newMessage(uint8(1), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
 	err := message.Send(t, clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
@@ -64,7 +64,7 @@ func TestSetChunkSizeMessageReceived(t *testing.T) {
 
 func TestAbortMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
-	message := NewMessage(uint8(2), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), uint32(2)))
+	message := newMessage(uint8(2), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), uint32(2)))
 	err := message.Send(t, clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
@@ -79,7 +79,7 @@ func TestAbortMessageReceived(t *testing.T) {
 func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
 	windowAcknowledgementSize := uint32(1024)
-	message := NewMessage(uint8(5), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), windowAcknowledgementSize))
+	message := newMessage(uint8(5), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), windowAcknowledgementSize))
 	err := message.Send(t, clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections

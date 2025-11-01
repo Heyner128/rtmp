@@ -16,7 +16,7 @@ func TestType0Chunk(t *testing.T) {
 	messageHeader := NewMessageHeader(uint32(0), uint32(4), uint8(1), uint32(123456))
 	header := NewHeader(*basicHeader, *messageHeader, uint32(0))
 	chunk := NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
-	_, err := conn.Write(chunk.Buffer(t))
+	_, err := conn.Write(chunk.Encode(t))
 	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)
@@ -33,7 +33,7 @@ func TestType1Chunk(t *testing.T) {
 	messageHeader := NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
 	header := NewHeader(*basicHeader, *messageHeader, uint32(0))
 	chunk := NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
-	_, err := conn.Write(chunk.Buffer(t))
+	_, err := conn.Write(chunk.Encode(t))
 	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)
@@ -50,7 +50,7 @@ func TestType2Chunk(t *testing.T) {
 	messageHeader := NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
 	header := NewHeader(*basicHeader, *messageHeader, uint32(0))
 	chunk := NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
-	_, err := conn.Write(chunk.Buffer(t))
+	_, err := conn.Write(chunk.Encode(t))
 	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)
@@ -67,7 +67,7 @@ func TestType3Chunk(t *testing.T) {
 	messageHeader := NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
 	header := NewHeader(*basicHeader, *messageHeader, uint32(0))
 	chunk := NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
-	_, err := conn.Write(chunk.Buffer(t))
+	_, err := conn.Write(chunk.Encode(t))
 	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)
@@ -84,7 +84,7 @@ func TestChunkExtendedTimestamp(t *testing.T) {
 	messageHeader := NewMessageHeader(math.MaxUint32, uint32(32), uint8(1), uint32(0))
 	header := NewHeader(*basicHeader, *messageHeader, math.MaxUint32)
 	chunk := NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
-	_, err := conn.Write(chunk.Buffer(t))
+	_, err := conn.Write(chunk.Encode(t))
 	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)

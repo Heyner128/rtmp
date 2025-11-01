@@ -12,10 +12,6 @@ type Echo struct {
 	Random     [1528]byte
 }
 
-func NewEcho(ts1 uint32, ts2 uint32, random [1528]byte) *Echo {
-	return &Echo{Timestamp: ts1, TimeStamp2: ts2, Random: random}
-}
-
 func ReadEcho(conn net.Conn, sentTimestampChunk Timestamp) (*Echo, error) {
 	buffer := make([]byte, 1536)
 	_, err := conn.Read(buffer)
@@ -32,7 +28,7 @@ func ReadEcho(conn net.Conn, sentTimestampChunk Timestamp) (*Echo, error) {
 	return echo, nil
 }
 
-func (echo Echo) Buffer() []byte {
+func (echo Echo) Encode() []byte {
 	buffer := make([]byte, 0)
 	buffer = binary.BigEndian.AppendUint32(buffer, echo.Timestamp)
 	buffer = binary.BigEndian.AppendUint32(buffer, echo.TimeStamp2)
@@ -42,6 +38,6 @@ func (echo Echo) Buffer() []byte {
 
 func (echo Echo) Send(conn net.Conn) error {
 
-	_, err := conn.Write(echo.Buffer())
+	_, err := conn.Write(echo.Encode())
 	return err
 }

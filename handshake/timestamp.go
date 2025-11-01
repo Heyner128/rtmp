@@ -12,10 +12,6 @@ type Timestamp struct {
 	Random    [1528]byte
 }
 
-func NewTimestamp(ts uint32, zero uint32, random [1528]byte) *Timestamp {
-	return &Timestamp{Timestamp: ts, Zero: zero, Random: random}
-}
-
 func GenerateTimestamp() Timestamp {
 	timestamp := new(Timestamp)
 	timestamp.Timestamp = uint32(0)
@@ -41,7 +37,7 @@ func ReadTimestamp(conn net.Conn) (*Timestamp, error) {
 	return timestamp, nil
 }
 
-func (timestamp Timestamp) Buffer() []byte {
+func (timestamp Timestamp) Encode() []byte {
 	buffer := make([]byte, 0)
 	buffer = binary.BigEndian.AppendUint32(buffer, timestamp.Timestamp)
 	buffer = binary.BigEndian.AppendUint32(buffer, timestamp.Zero)
@@ -50,6 +46,6 @@ func (timestamp Timestamp) Buffer() []byte {
 }
 
 func (timestamp Timestamp) Send(conn net.Conn) error {
-	_, err := conn.Write(timestamp.Buffer())
+	_, err := conn.Write(timestamp.Encode())
 	return err
 }

@@ -35,7 +35,7 @@ func acceptChunk(t *testing.T) (string, chan Chunk) {
 	return listener.Addr().String(), chunks
 }
 
-func (chunk *Chunk) Buffer(t *testing.T) []byte {
+func (chunk *Chunk) Encode(t *testing.T) []byte {
 	t.Helper()
 	buffer := make([]byte, 0)
 	//basic header
