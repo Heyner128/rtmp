@@ -3,6 +3,7 @@ package chunk
 import (
 	"encoding/binary"
 	"fmt"
+	"rtmp/amf"
 	"rtmp/rtmpconn"
 )
 
@@ -18,6 +19,7 @@ func NewChunk(header Header, data []byte) *Chunk {
 	}
 }
 
+// TODO refactor me pls
 func Accept(conn *rtmpconn.RtmpConn) (*Chunk, error) {
 	header, err := ReadHeader(conn)
 	if err != nil {
@@ -49,6 +51,17 @@ func Accept(conn *rtmpconn.RtmpConn) (*Chunk, error) {
 			conn.CurrentMessage = nil
 		} else if conn.CurrentMessage.TypeId == 5 {
 			conn.WindowAcknowledgementSize = binary.BigEndian.Uint32(conn.CurrentMessage.Data[0:4])
+		} else if conn.CurrentMessage.TypeId == 20 {
+			command, err := amf.DecodeAmfCommand(conn.CurrentMessage.Data)
+			fmt.Printf("Command received: %s\n", command)
+			response := amf.NewAmfCommand(
+				amf.NewAmfString("_result"),
+				amf.NewAmfNumber(1),
+			)
+			_, err = conn.Write(response.Encode())
+			if err != nil {
+				return nil, err
+			}
 		}
 		conn.Messages <- conn.CurrentMessage
 		conn.CurrentMessage = new(rtmpconn.Message)

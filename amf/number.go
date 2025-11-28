@@ -9,17 +9,18 @@ var numberMarker = byte(0x00)
 
 type AmfNumber float64
 
-func newAmfNumber(number float64) AmfNumber {
+func NewAmfNumber(number float64) AmfNumber {
 	return AmfNumber(number)
 }
 
-func (number AmfNumber) encode() []byte {
+func (number AmfNumber) Encode() []byte {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, numberMarker)
 	bytes = binary.BigEndian.AppendUint64(bytes, math.Float64bits(float64(number)))
 	return bytes
 }
 
-func decodeAmfNumber(bytes []byte) AmfNumber {
-	return AmfNumber(math.Float64frombits(binary.BigEndian.Uint64(bytes[1:])))
+func decodeNextAmfNumber(bytes []byte) (int, AmfNumber) {
+	length := 9
+	return length, AmfNumber(math.Float64frombits(binary.BigEndian.Uint64(bytes[1:length])))
 }

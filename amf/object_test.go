@@ -1,0 +1,80 @@
+package amf
+
+import (
+	"encoding/binary"
+	"testing"
+	"unicode/utf8"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestObjectEncoding(t *testing.T) {
+	object, _ := generateTestAmfObject()
+	bytes := object.Encode()
+	assert.NotNil(t, bytes)
+	_, decodedObject, _ := decodeNextAmfObject(bytes)
+	assert.Equal(t, decodedObject, object)
+}
+
+func TestObjectDecodingFailWrongValueMarker(t *testing.T) {
+	bytes := make([]byte, 0)
+	bytes = append(bytes, 0x01)
+	bytes = append(bytes, []byte{0x00, 0x00}...)
+	bytes = append(bytes, 0x10)
+	_, _, err := decodeNextAmfObject(bytes)
+	assert.Error(t, err)
+}
+
+func TestObjectDecodingFailWrongMarker(t *testing.T) {
+	bytes := make([]byte, 0)
+	bytes = append(bytes, 0x01)
+	bytes = append(bytes, []byte{0x00, 0x00}...)
+	bytes = append(bytes, 0x09)
+	_, _, err := decodeNextAmfObject(bytes)
+	assert.Error(t, err)
+}
+
+func TestObjectDecodingFailNotEnoughBytes(t *testing.T) {
+	bytes := make([]byte, 0)
+	bytes = append(bytes, 0x00)
+	_, _, err := decodeNextAmfObject(bytes)
+	assert.Error(t, err)
+}
+
+func TestObjectDecoding(t *testing.T) {
+	amfObject, bytes := generateTestAmfObject()
+
+	_, object, err := decodeNextAmfObject(bytes)
+
+	assert.NoError(t, err)
+
+	assert.Equal(t, object, NewAmfObject(amfObject))
+}
+
+func generateTestAmfObject() (AmfObject, []byte) {
+	amfObject := make([]AmfObjectProperty, 3)
+	amfObject[0] = AmfObjectProperty{"propertyOne", NewAmfString("propertyOneValue")}
+	amfObject[1] = AmfObjectProperty{"propertyTwo", NewAmfString("propertyTwoValue")}
+	amfObject[2] = AmfObjectProperty{"propertyThree", NewAmfBoolean(0)}
+	bytes := make([]byte, 0)
+	bytes = append(bytes, 0x03)
+	// property one
+	bytes = binary.BigEndian.AppendUint16(bytes, uint16(utf8.RuneCountInString("propertyOne")))
+	bytes = append(bytes, []byte("propertyOne")...)
+	bytes = append(bytes, amfObject[0].Value.Encode()...)
+
+	// property two
+	bytes = binary.BigEndian.AppendUint16(bytes, uint16(utf8.RuneCountInString("propertyTwo")))
+	bytes = append(bytes, []byte("propertyTwo")...)
+	bytes = append(bytes, amfObject[1].Value.Encode()...)
+
+	//property three
+	bytes = binary.BigEndian.AppendUint16(bytes, uint16(utf8.RuneCountInString("propertyThree")))
+	bytes = append(bytes, []byte("propertyThree")...)
+	bytes = append(bytes, amfObject[2].Value.Encode()...)
+
+	//end
+	bytes = append(bytes, []byte{0x00, 0x00}...)
+	bytes = append(bytes, 0x09)
+	return amfObject, bytes
+}

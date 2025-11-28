@@ -60,17 +60,29 @@ func (rtmpConn RtmpConn) SetWriteDeadline(t time.Time) error {
 func (rtmpConn RtmpConn) Read(buffer []byte) (int, error) {
 	err := rtmpConn.Conn.SetReadDeadline(time.Now().Add(rtmpConn.NetworkTimeout))
 	if err != nil {
+		rtmpConn.Errors <- err
 		return 0, err
 	}
-	return rtmpConn.Conn.Read(buffer)
+	n, err := rtmpConn.Conn.Read(buffer)
+	if err != nil {
+		rtmpConn.Errors <- err
+		return 0, err
+	}
+	return n, err
 }
 
 func (rtmpConn RtmpConn) Write(buffer []byte) (int, error) {
 	err := rtmpConn.Conn.SetWriteDeadline(time.Now().Add(rtmpConn.NetworkTimeout))
 	if err != nil {
+		rtmpConn.Errors <- err
 		return 0, err
 	}
-	return rtmpConn.Conn.Write(buffer)
+	n, err := rtmpConn.Conn.Write(buffer)
+	if err != nil {
+		rtmpConn.Errors <- err
+		return 0, err
+	}
+	return n, err
 }
 
 func (rtmpConn RtmpConn) Close() error {
