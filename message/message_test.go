@@ -1,39 +1,39 @@
-package message
+package message_test
 
 import (
 	"encoding/binary"
-	"rtmp/amf"
-	"rtmp/server"
+	"rtmp/message"
+	"rtmp/testHelpers"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
-	message := newMessage(uint8(9), uint32(123456), generateRandomBytes(1024))
-	err := message.Send(t, clientConn)
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	testMessage := message.NewMessage(uint8(9), testHelpers.GenerateRandomBytes(1024))
+	err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
 	case messageReceived := <-serverConn.Messages:
-		assert.Equal(t, message.MessageTypeId, messageReceived.TypeId)
-		assert.Equal(t, message.MessageStreamId, messageReceived.StreamId)
-		assert.Equal(t, message.Data, messageReceived.Data)
+		assert.Equal(t, testMessage.MessageTypeId, messageReceived.TypeId)
+		assert.Equal(t, testMessage.MessageStreamId, messageReceived.StreamId)
+		assert.Equal(t, testMessage.Data, messageReceived.Data)
 	case <-serverConn.Errors:
 		t.FailNow()
 	}
 }
 
 func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
 	newSize := uint32(100)
-	setSizeMessage := newMessage(uint8(1), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
-	randomDataMessage := newMessage(uint8(9), uint32(123456), generateRandomBytes(120))
-	err := setSizeMessage.Send(t, clientConn)
+	setSizeMessage := message.NewMessage(uint8(1), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	randomDataMessage := message.NewMessage(uint8(9), testHelpers.GenerateRandomBytes(120))
+	err := setSizeMessage.Send(clientConn)
 	clientConn.MaxChunkSize = newSize
 	assert.Nil(t, err)
-	err = randomDataMessage.Send(t, clientConn)
+	err = randomDataMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	<-serverConn.Messages
@@ -49,10 +49,10 @@ func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 }
 
 func TestSetChunkSizeMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
 	newSize := uint32(1024)
-	message := newMessage(uint8(1), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
-	err := message.Send(t, clientConn)
+	testMessage := message.NewMessage(uint8(1), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -64,9 +64,9 @@ func TestSetChunkSizeMessageReceived(t *testing.T) {
 }
 
 func TestAbortMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
-	message := newMessage(uint8(2), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), uint32(2)))
-	err := message.Send(t, clientConn)
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	testMessage := message.NewMessage(uint8(2), binary.BigEndian.AppendUint32(make([]byte, 0), uint32(2)))
+	err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -78,10 +78,10 @@ func TestAbortMessageReceived(t *testing.T) {
 }
 
 func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
-	windowAcknowledgementSize := uint32(1024)
-	message := newMessage(uint8(5), uint32(123456), binary.BigEndian.AppendUint32(make([]byte, 0), windowAcknowledgementSize))
-	err := message.Send(t, clientConn)
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	windowAcknowledgementSize := 1024
+	testMessage := testHelpers.GenerateTestWindowAcknowledgementSize(windowAcknowledgementSize)
+	err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -93,32 +93,34 @@ func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
 }
 
 func TestCommandMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := server.StartTestingServerWithHandshake(t)
-	connectCommand := amf.NewAmfCommand(
-		amf.NewAmfString("connect"),
-		amf.NewAmfNumber(1),
-		amf.NewAmfObject(amf.AmfObject{
-			amf.AmfObjectProperty{Name: "app", Value: amf.NewAmfString("testApp")},
-			amf.AmfObjectProperty{Name: "objectEncoding", Value: amf.NewAmfNumber(0)},
-		}),
-	)
-	message := newMessage(uint8(20), uint32(123456), connectCommand.Encode())
-	err := message.Send(t, clientConn)
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	testMessage := testHelpers.GenerateTestConnectCommand()
+	err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
-
-	responseObject := amf.NewAmfCommand(
-		amf.NewAmfString("_result"),
-		amf.NewAmfNumber(1),
-	)
 	select {
 	case receivedMessage := <-serverConn.Messages:
-		assert.Equal(t, message.Data, receivedMessage.Data)
+		assert.Equal(t, testMessage.Data, receivedMessage.Data)
 	case <-serverConn.Errors:
 		t.FailNow()
 	}
-	sentMessage := make([]byte, len(responseObject.Encode()))
-	_, err = clientConn.Read(sentMessage)
+}
+
+func TestConnectMessageFlow(t *testing.T) {
+	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	testMessage := testHelpers.GenerateTestConnectCommand()
+	err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
-	assert.Equal(t, responseObject.Encode(), sentMessage)
+	serverConn := <-rtmpServer.Connections
+	select {
+	case <-serverConn.Messages:
+	case <-serverConn.Errors:
+		t.FailNow()
+	}
+	select {
+	case sentTestMessage := <-clientConn.Messages:
+		assert.Equal(t, serverConn.SendWindowAcknowledgementSize, sentTestMessage.Data)
+	case <-clientConn.Errors:
+		t.FailNow()
+	}
 }

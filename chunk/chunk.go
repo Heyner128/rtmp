@@ -2,9 +2,6 @@ package chunk
 
 import (
 	"encoding/binary"
-	"fmt"
-	"rtmp/amf"
-	"rtmp/rtmpconn"
 )
 
 type Chunk struct {
@@ -19,52 +16,48 @@ func NewChunk(header Header, data []byte) *Chunk {
 	}
 }
 
-// TODO refactor me pls
-func Accept(conn *rtmpconn.RtmpConn) (*Chunk, error) {
-	header, err := ReadHeader(conn)
-	if err != nil {
-		return nil, err
+func (chunk *Chunk) Encode() []byte {
+	buffer := make([]byte, 0)
+	basicHeader := chunk.encodeBasicHeader()
+	messageHeader, extendedTimeStamp := chunk.encodeMessageHeader()
+	buffer = append(buffer, basicHeader...)
+	buffer = append(buffer, messageHeader...)
+	buffer = append(buffer, extendedTimeStamp...)
+	buffer = append(buffer, chunk.Data...)
+	return buffer
+}
+
+func (chunk *Chunk) encodeBasicHeader() []byte {
+	basicHeader := make([]byte, 0)
+	if chunk.Header.BasicHeader.ChunkStreamId >= 2 && chunk.Header.BasicHeader.ChunkStreamId <= 63 {
+		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|uint8(chunk.Header.BasicHeader.ChunkStreamId))
+	} else if chunk.Header.BasicHeader.ChunkStreamId >= 64 && chunk.Header.BasicHeader.ChunkStreamId <= 319 {
+		basicHeader = append(basicHeader, uint8(chunk.Header.BasicHeader.ChunkStreamId-64))
+		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6)
+	} else if chunk.Header.BasicHeader.ChunkStreamId >= 320 && chunk.Header.BasicHeader.ChunkStreamId <= 65599 {
+		basicHeader = binary.BigEndian.AppendUint16(basicHeader, uint16(chunk.Header.BasicHeader.ChunkStreamId-64))
+		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x3F)
 	}
-	data := make(
-		[]byte,
-		min(max(header.MessageHeader.MessageLength, conn.CurrentMessage.Length)-conn.CurrentMessage.DataSize(), conn.MaxChunkSize),
-	)
-	_, err = conn.Read(data)
-	if err != nil {
-		return nil, err
+	return basicHeader
+}
+
+func (chunk *Chunk) encodeMessageHeader() ([]byte, []byte) {
+	messageHeader := make([]byte, 0)
+	extendedTimeStamp := make([]byte, 0)
+	if chunk.Header.BasicHeader.Fmt <= 2 {
+		if chunk.Header.MessageHeader.Timestamp >= 16777215 {
+			messageHeader = append(messageHeader, []byte{0xFF, 0xFF, 0xFF}...)
+			extendedTimeStamp = binary.BigEndian.AppendUint32(extendedTimeStamp, chunk.Header.ExtendedTimestamp)
+		} else {
+			messageHeader = append(messageHeader, binary.BigEndian.AppendUint32(make([]byte, 0), chunk.Header.MessageHeader.Timestamp)[1:]...)
+		}
 	}
-	chunk := NewChunk(*header, data)
-	fmt.Printf("chunk received, Fmt: %d - chunk stream id: %d - message type id: %d - message stream id: %d", chunk.Header.BasicHeader.Fmt, chunk.Header.BasicHeader.ChunkStreamId, chunk.Header.MessageHeader.MessageTypeId, chunk.Header.MessageHeader.MessageStreamId)
-	fmt.Printf(" - message length: %d\n", chunk.Header.MessageHeader.MessageLength)
 	if chunk.Header.BasicHeader.Fmt <= 1 {
-		conn.CurrentMessage.Length = chunk.Header.MessageHeader.MessageLength
-		conn.CurrentMessage.TypeId = chunk.Header.MessageHeader.MessageTypeId
+		messageHeader = append(messageHeader, binary.BigEndian.AppendUint32(make([]byte, 0), chunk.Header.MessageHeader.MessageLength)[1:]...)
+		messageHeader = append(messageHeader, chunk.Header.MessageHeader.MessageTypeId)
 	}
 	if chunk.Header.BasicHeader.Fmt == 0 {
-		conn.CurrentMessage.StreamId = chunk.Header.MessageHeader.MessageStreamId
+		messageHeader = append(messageHeader, binary.LittleEndian.AppendUint32(make([]byte, 0), chunk.Header.MessageHeader.MessageStreamId)...)
 	}
-	conn.CurrentMessage.Data = append(conn.CurrentMessage.Data, chunk.Data...)
-	if conn.CurrentMessage.Length == conn.CurrentMessage.DataSize() && conn.CurrentMessage.Length > 0 {
-		if conn.CurrentMessage.TypeId == 1 {
-			conn.MaxChunkSize = binary.BigEndian.Uint32(conn.CurrentMessage.Data[0:4]) >> 1
-		} else if conn.CurrentMessage.TypeId == 2 {
-			conn.CurrentMessage = nil
-		} else if conn.CurrentMessage.TypeId == 5 {
-			conn.WindowAcknowledgementSize = binary.BigEndian.Uint32(conn.CurrentMessage.Data[0:4])
-		} else if conn.CurrentMessage.TypeId == 20 {
-			command, err := amf.DecodeAmfCommand(conn.CurrentMessage.Data)
-			fmt.Printf("Command received: %s\n", command)
-			response := amf.NewAmfCommand(
-				amf.NewAmfString("_result"),
-				amf.NewAmfNumber(1),
-			)
-			_, err = conn.Write(response.Encode())
-			if err != nil {
-				return nil, err
-			}
-		}
-		conn.Messages <- conn.CurrentMessage
-		conn.CurrentMessage = new(rtmpconn.Message)
-	}
-	return chunk, nil
+	return messageHeader, extendedTimeStamp
 }

@@ -8,7 +8,7 @@ type Version struct {
 	Version uint8
 }
 
-func newVersion(version uint8) *Version {
+func NewVersion(version uint8) *Version {
 	return &Version{Version: version}
 }
 

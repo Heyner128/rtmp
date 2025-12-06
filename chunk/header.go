@@ -19,14 +19,14 @@ func NewHeader(basicHeader BasicHeader, messageHeader MessageHeader, extendedTim
 	}
 }
 
-func ReadHeader(conn *rtmpconn.RtmpConn) (*Header, error) {
+func ReadChunkHeader(conn *rtmpconn.RtmpConn) (*Header, error) {
 	basicHeader, err := ReadBasicHeader(conn)
 	if err != nil {
 		return nil, err
 	}
-	messageHeader, err2 := ReadMessageHeader(conn, *basicHeader)
-	if err2 != nil {
-		return nil, err2
+	messageHeader, err := ReadMessageHeader(conn, *basicHeader)
+	if err != nil {
+		return nil, err
 	}
 	var extendedTimestamp uint32
 	extendedTimestampBuffer := make([]byte, 0)

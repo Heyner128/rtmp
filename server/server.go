@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"rtmp/chunk"
 	"rtmp/handshake"
+	"rtmp/message"
 	"rtmp/rtmpconn"
 	"time"
 )
@@ -66,7 +66,7 @@ func handleConnection(conn *rtmpconn.RtmpConn) error {
 		return err
 	}
 	for {
-		_, err = chunk.Accept(conn)
+		_, err = message.Accept(conn)
 		if err != nil {
 			log.Println("Chunk reading failed", err)
 			return err

@@ -1,24 +1,26 @@
-package handshake
+package handshake_test
 
 import (
 	"net"
+	"rtmp/handshake"
+	"rtmp/testHelpers"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestGenerateTimestamp(t *testing.T) {
-	timestamp := GenerateTimestamp()
+	timestamp := handshake.GenerateTimestamp()
 	assert.Equal(t, uint32(0), timestamp.Timestamp)
 	assert.Equal(t, uint32(0), timestamp.Zero)
 }
 
 func TestHandshake(t *testing.T) {
-	address := acceptTestHandshake(t)
+	address := testHelpers.AcceptTestHandshake(t)
 	conn, _ := net.Dial("tcp", address)
-	hs, err := RequestTestHandshake(t, conn)
+	hs, err := testHelpers.RequestTestHandshake(t, conn)
 	assert.Nil(t, err)
-	expectedServerVersion := newVersion(3)
+	expectedServerVersion := handshake.NewVersion(3)
 	assert.Equal(t, expectedServerVersion.Version, hs.ServerVersion.Version)
 	assert.Equal(t, uint32(0), hs.ServerTimestamp.Timestamp)
 	assert.Equal(t, uint32(0), hs.ServerTimestamp.Zero)

@@ -17,23 +17,25 @@ func (message *Message) DataSize() uint32 {
 }
 
 type RtmpConn struct {
-	Conn                      net.Conn
-	MaxChunkSize              uint32
-	NetworkTimeout            time.Duration
-	CurrentMessage            *Message
-	Messages                  chan *Message
-	WindowAcknowledgementSize uint32
-	Errors                    chan error
+	Conn                          net.Conn
+	MaxChunkSize                  uint32
+	NetworkTimeout                time.Duration
+	CurrentMessage                *Message
+	Messages                      chan *Message
+	WindowAcknowledgementSize     uint32
+	SendWindowAcknowledgementSize uint32
+	Errors                        chan error
 }
 
 func NewRtmpConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) *RtmpConn {
 	return &RtmpConn{
-		Conn:           conn,
-		MaxChunkSize:   maxChunkSize,
-		NetworkTimeout: networkTimeout,
-		CurrentMessage: &Message{},
-		Messages:       make(chan *Message, 1),
-		Errors:         make(chan error),
+		Conn:                          conn,
+		MaxChunkSize:                  maxChunkSize,
+		NetworkTimeout:                networkTimeout,
+		CurrentMessage:                &Message{},
+		SendWindowAcknowledgementSize: 256 * 1024,
+		Messages:                      make(chan *Message, 1),
+		Errors:                        make(chan error),
 	}
 }
 

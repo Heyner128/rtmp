@@ -1,18 +1,19 @@
-package handshake
+package testHelpers
 
 import (
 	"net"
+	"rtmp/handshake"
 	"testing"
 	"time"
 )
 
-func acceptTestHandshake(t *testing.T) string {
+func AcceptTestHandshake(t *testing.T) string {
 	t.Helper()
 	address := "127.0.0.1:0"
 	listener, _ := net.Listen("tcp", address)
 	go func() {
 		conn, _ := listener.Accept()
-		err := Accept(conn)
+		err := handshake.Accept(conn)
 		if err != nil {
 			panic(err)
 		}
@@ -20,32 +21,36 @@ func acceptTestHandshake(t *testing.T) string {
 	return listener.Addr().String()
 }
 
-func RequestTestHandshake(t *testing.T, conn net.Conn) (*Handshake, error) {
+func RequestTestHandshake(t *testing.T, conn net.Conn) (*handshake.Handshake, error) {
 	t.Helper()
-	// sends C0 and C1
-	clientVersion := &Version{Version: 1}
-	err := clientVersion.Send(conn)
+	err := conn.SetDeadline(time.Now().Add(3 * time.Second))
 	if err != nil {
 		return nil, err
 	}
-	clientTimestamp := GenerateTimestamp()
+	// sends C0 and C1
+	clientVersion := &handshake.Version{Version: 1}
+	err = clientVersion.Send(conn)
+	if err != nil {
+		return nil, err
+	}
+	clientTimestamp := handshake.GenerateTimestamp()
 	err = clientTimestamp.Send(conn)
 	if err != nil {
 		return nil, err
 	}
 	// receives S0 and S1
-	serverVersion, err := ReadVersion(conn)
+	serverVersion, err := handshake.ReadVersion(conn)
 	if err != nil {
 		return nil, err
 	}
 	start := time.Now()
-	serverTimestamp, err := ReadTimestamp(conn)
+	serverTimestamp, err := handshake.ReadTimestamp(conn)
 	if err != nil {
 		return nil, err
 	}
 	serverTimestampReadingTimeInMs := time.Since(start).Milliseconds()
 	// sends C2
-	clientEcho := &Echo{
+	clientEcho := &handshake.Echo{
 		Timestamp:  serverTimestamp.Timestamp,
 		TimeStamp2: uint32(uint64(serverTimestamp.Timestamp) + uint64(serverTimestampReadingTimeInMs)),
 		Random:     serverTimestamp.Random,
@@ -55,11 +60,11 @@ func RequestTestHandshake(t *testing.T, conn net.Conn) (*Handshake, error) {
 		return nil, err
 	}
 	// receives S2
-	serverEcho, err := ReadEcho(conn, clientTimestamp)
+	serverEcho, err := handshake.ReadEcho(conn, clientTimestamp)
 	if err != nil {
 		return nil, err
 	}
-	return &Handshake{
+	return &handshake.Handshake{
 		ClientVersion:   clientVersion,
 		ServerVersion:   serverVersion,
 		ClientTimestamp: &clientTimestamp,

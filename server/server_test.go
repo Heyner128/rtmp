@@ -1,10 +1,11 @@
-package server
+package server_test
 
 import (
 	"fmt"
 	"net"
 	"rtmp/chunk"
-	"rtmp/handshake"
+	"rtmp/server"
+	"rtmp/testHelpers"
 	"testing"
 	"time"
 
@@ -12,52 +13,52 @@ import (
 )
 
 func TestStartServer(t *testing.T) {
-	server := StartTestingServer(t)
-	_, err := net.Dial("tcp", server.Listener.Addr().String())
+	testServer := testHelpers.StartTestingServer(t)
+	_, err := net.Dial("tcp", testServer.Listener.Addr().String())
 	assert.Nil(t, err)
 }
 
 func TestStartServerFail(t *testing.T) {
 	invalidAddress := "notanip:0000"
 	go func() {
-		assert.Panics(t, func() { NewRtmpServer(invalidAddress) })
+		assert.Panics(t, func() { server.NewRtmpServer(invalidAddress) })
 	}()
 	_, err := net.Dial("tcp", invalidAddress)
 	assert.NotNil(t, err)
 }
 
 func TestServerDefaultSettings(t *testing.T) {
-	server := NewRtmpServer("127.0.0.1:0")
-	assert.Equal(t, uint32(128), server.DefaultMaxChunkSize)
-	assert.Equal(t, 10*time.Second, server.DefaultNetworkTimeout)
+	testServer := server.NewRtmpServer("127.0.0.1:0")
+	assert.Equal(t, uint32(128), testServer.DefaultMaxChunkSize)
+	assert.Equal(t, 10*time.Second, testServer.DefaultNetworkTimeout)
 }
 
 func TestServerNetworkTimeout(t *testing.T) {
-	server := StartTestingServer(t)
-	server.DefaultNetworkTimeout = 1 * time.Second
-	conn, _ := net.Dial("tcp", server.Listener.Addr().String())
+	testServer := testHelpers.StartTestingServer(t)
+	testServer.DefaultNetworkTimeout = 1 * time.Second
+	conn, _ := net.Dial("tcp", testServer.Listener.Addr().String())
 	_, err := conn.Write([]byte("test"))
 	assert.Nil(t, err)
-	serverConn := <-server.Connections
+	serverConn := <-testServer.Connections
 	time.Sleep(2 * time.Second)
 	err = <-serverConn.Errors
 	assert.NotNil(t, err)
 }
 
 func TestServerOneConnectionOnlyOneHandshake(t *testing.T) {
-	server := StartTestingServer(t)
-	conn, err := net.Dial("tcp", server.Listener.Addr().String())
+	testServer := testHelpers.StartTestingServer(t)
+	conn, err := net.Dial("tcp", testServer.Listener.Addr().String())
 	assert.Nil(t, err)
-	_, err = handshake.RequestTestHandshake(t, conn)
+	_, err = testHelpers.RequestTestHandshake(t, conn)
 	assert.Nil(t, err)
-	_, err = handshake.RequestTestHandshake(t, conn)
+	_, err = testHelpers.RequestTestHandshake(t, conn)
 	assert.NotNil(t, err)
 }
 
 func TestServerReceivesMultipleChunks(t *testing.T) {
-	server, conn := StartTestingServerWithHandshake(t)
+	testServer, conn := testHelpers.StartTestingServerWithHandshake(t)
 	for i := range 10 {
-		chunkSent := chunk.NewChunk(
+		testChunk := chunk.NewChunk(
 			*chunk.NewHeader(
 				*chunk.NewBasicHeader(uint8(0), uint32(2)),
 				*chunk.NewMessageHeader(uint32(0), uint32(4), uint8(0), uint32(123456)),
@@ -65,10 +66,10 @@ func TestServerReceivesMultipleChunks(t *testing.T) {
 			),
 			[]byte("test"),
 		)
-		_, err := conn.Write(chunkSent.Encode(t))
+		_, err := conn.Write(testChunk.Encode())
 		assert.Nil(t, err)
 		select {
-		case serverConn := <-server.Connections:
+		case serverConn := <-testServer.Connections:
 			select {
 			case err = <-serverConn.Errors:
 				assert.Nil(t, err)
