@@ -2,6 +2,7 @@ package testHelpers
 
 import (
 	"net"
+	"rtmp/message"
 	"rtmp/rtmpconn"
 	"rtmp/server"
 	"testing"
@@ -23,12 +24,20 @@ func StartTestingServerWithHandshake(t *testing.T) (*server.RtmpServer, rtmpconn
 	t.Helper()
 	rtmpServer := StartTestingServer(t)
 	conn, _ := net.Dial("tcp", rtmpServer.Listener.Addr().String())
-	clientConn := rtmpconn.NewRtmpConn(conn, rtmpServer.DefaultMaxChunkSize, rtmpServer.DefaultNetworkTimeout)
 	err := conn.SetDeadline(time.Now().Add(3 * time.Second))
+	clientConn := rtmpconn.NewRtmpConn(conn, rtmpServer.DefaultMaxChunkSize, rtmpServer.DefaultNetworkTimeout)
 	if err != nil {
 		t.Error(err)
 	}
 	_, err = RequestTestHandshake(t, clientConn)
+	go func() {
+		for {
+			_, err = message.Accept(clientConn)
+			if err != nil {
+				t.Error(err)
+			}
+		}
+	}()
 	if err != nil {
 		t.Error(err)
 	}

@@ -32,11 +32,11 @@ func (chunk *Chunk) encodeBasicHeader() []byte {
 	if chunk.Header.BasicHeader.ChunkStreamId >= 2 && chunk.Header.BasicHeader.ChunkStreamId <= 63 {
 		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|uint8(chunk.Header.BasicHeader.ChunkStreamId))
 	} else if chunk.Header.BasicHeader.ChunkStreamId >= 64 && chunk.Header.BasicHeader.ChunkStreamId <= 319 {
+		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x00)
 		basicHeader = append(basicHeader, uint8(chunk.Header.BasicHeader.ChunkStreamId-64))
-		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6)
 	} else if chunk.Header.BasicHeader.ChunkStreamId >= 320 && chunk.Header.BasicHeader.ChunkStreamId <= 65599 {
-		basicHeader = binary.BigEndian.AppendUint16(basicHeader, uint16(chunk.Header.BasicHeader.ChunkStreamId-64))
 		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x3F)
+		basicHeader = binary.BigEndian.AppendUint16(basicHeader, uint16(chunk.Header.BasicHeader.ChunkStreamId-64))
 	}
 	return basicHeader
 }

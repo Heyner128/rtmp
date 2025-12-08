@@ -86,7 +86,7 @@ func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
 	serverConn := <-rtmpServer.Connections
 	select {
 	case <-serverConn.Messages:
-		assert.Equal(t, windowAcknowledgementSize, serverConn.WindowAcknowledgementSize)
+		assert.Equal(t, uint32(windowAcknowledgementSize), serverConn.WindowAcknowledgementSize)
 	case <-serverConn.Errors:
 		t.FailNow()
 	}
@@ -119,7 +119,7 @@ func TestConnectMessageFlow(t *testing.T) {
 	}
 	select {
 	case sentTestMessage := <-clientConn.Messages:
-		assert.Equal(t, serverConn.SendWindowAcknowledgementSize, sentTestMessage.Data)
+		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.SendWindowAcknowledgementSize), sentTestMessage.Data)
 	case <-clientConn.Errors:
 		t.FailNow()
 	}

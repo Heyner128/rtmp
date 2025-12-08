@@ -71,7 +71,7 @@ func ReadBasicHeader(conn *rtmpconn.RtmpConn) (*BasicHeader, error) {
 		}
 		chunkStreamIdBuffer = binary.BigEndian.AppendUint32(make([]byte, 0), uint32(secondByte[0])+64)[1:]
 		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00, 0x00}, chunkStreamIdBuffer...))
-	} else if chunkStreamIdBuffer[0] == 0x01 {
+	} else if chunkStreamIdBuffer[0] == 0x3F {
 		secondByte := make([]byte, 1)
 		_, err := conn.Read(secondByte)
 		if err != nil {
