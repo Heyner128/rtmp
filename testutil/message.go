@@ -11,9 +11,9 @@ func GenerateTestConnectCommand() message.Message {
 	connectCommand := amf.NewCommand(
 		amf.NewString("connect"),
 		amf.NewNumber(1),
-		amf.NewObject(amf.Object{
-			amf.ObjectProperty{Name: "app", Value: amf.NewString("testApp")},
-			amf.ObjectProperty{Name: "objectEncoding", Value: amf.NewNumber(0)},
+		amf.NewObject([]amf.ObjectProperty{
+			{Name: "app", Value: amf.NewString("testApp")},
+			{Name: "objectEncoding", Value: amf.NewNumber(0)},
 		}),
 	)
 	return *message.NewMessage(message.TypeCommandMessageAmf0, connectCommand.Encode())
@@ -23,9 +23,9 @@ func GenerateTestUnknownCommand() message.Message {
 	connectCommand := amf.NewCommand(
 		amf.NewString("notacommand"),
 		amf.NewNumber(9),
-		amf.NewObject(amf.Object{
-			amf.ObjectProperty{Name: "prop1", Value: amf.NewString("testApp")},
-			amf.ObjectProperty{Name: "prop2", Value: amf.NewNumber(0)},
+		amf.NewObject([]amf.ObjectProperty{
+			{Name: "prop1", Value: amf.NewString("testApp")},
+			{Name: "prop2", Value: amf.NewNumber(0)},
 		}),
 	)
 	return *message.NewMessage(message.TypeCommandMessageAmf0, connectCommand.Encode())
