@@ -1,10 +1,10 @@
-package testHelpers
+package testutil
 
 import (
 	"net"
 	"rtmp/chunk"
+	"rtmp/conn"
 	"rtmp/message"
-	"rtmp/rtmpconn"
 	"testing"
 	"time"
 )
@@ -15,17 +15,17 @@ func AcceptTestChunk(t *testing.T) (string, chan chunk.Chunk) {
 
 	listener, _ := net.Listen("tcp", address)
 
-	rtmpConn := rtmpconn.NewRtmpConn(nil, 128, 10*time.Second)
+	rtmpConn := conn.NewConn(nil, 128, 10*time.Second)
 
 	chunks := make(chan chunk.Chunk)
 
 	go func() {
 		for {
-			conn, err := listener.Accept()
+			netConnection, err := listener.Accept()
 			if err != nil {
 				continue
 			}
-			rtmpConn.Conn = conn
+			rtmpConn.Conn = netConnection
 			receivedChunk, err := message.Accept(rtmpConn)
 			if err != nil || receivedChunk == nil {
 				continue

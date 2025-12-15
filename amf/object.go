@@ -10,14 +10,14 @@ import (
 var objectMarker = byte(0x03)
 var objectEndMarker = byte(0x09)
 
-type AmfObject []AmfObjectProperty
+type Object []ObjectProperty
 
-type AmfObjectProperty struct {
+type ObjectProperty struct {
 	Name  string
-	Value AmfValueType
+	Value ValueType
 }
 
-func (object AmfObject) Encode() []byte {
+func (object Object) Encode() []byte {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, objectMarker)
 	for _, property := range object {
@@ -30,18 +30,18 @@ func (object AmfObject) Encode() []byte {
 	return bytes
 }
 
-func NewAmfObject(object []AmfObjectProperty) AmfObject {
+func NewObject(object []ObjectProperty) Object {
 	return object
 }
 
-func decodeNextAmfObject(bytes []byte) (int, AmfObject, error) {
+func decodeNextObject(bytes []byte) (int, Object, error) {
 	if len(bytes) < 4 {
 		return 0, nil, errors.New("Can't decode object, not enough bytes")
 	}
 	if bytes[0] != objectMarker {
 		return 0, nil, errors.New("Can't decode object, object marker is not 0x03")
 	}
-	object := make(AmfObject, 0)
+	object := make(Object, 0)
 	totalLength := 0
 	for length, property := range decodeObjectProperties(bytes) {
 		object = append(object, property)
@@ -50,8 +50,8 @@ func decodeNextAmfObject(bytes []byte) (int, AmfObject, error) {
 	return totalLength, object, nil
 }
 
-func decodeObjectProperties(bytes []byte) iter.Seq2[int, AmfObjectProperty] {
-	return func(yield func(int, AmfObjectProperty) bool) {
+func decodeObjectProperties(bytes []byte) iter.Seq2[int, ObjectProperty] {
+	return func(yield func(int, ObjectProperty) bool) {
 		pointer := 1
 		maxObjectLength := math.MaxUint16
 		for {
@@ -63,9 +63,9 @@ func decodeObjectProperties(bytes []byte) iter.Seq2[int, AmfObjectProperty] {
 				pointer++
 				break
 			}
-			propertyValueLength, propertyValue := decodeNextAmfType(bytes[pointer:])
+			propertyValueLength, propertyValue := decodeNextValueType(bytes[pointer:])
 			pointer += propertyValueLength
-			property := AmfObjectProperty{propertyName, propertyValue}
+			property := ObjectProperty{propertyName, propertyValue}
 			if !yield(pointer, property) {
 				return
 			}

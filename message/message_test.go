@@ -3,16 +3,16 @@ package message_test
 import (
 	"encoding/binary"
 	"rtmp/message"
-	"rtmp/testHelpers"
+	"rtmp/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
-	testMessage := message.NewMessage(uint8(9), testHelpers.GenerateRandomBytes(1024))
-	err := testMessage.Send(clientConn)
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
+	testMessage := testutil.GenerateTestRandomMessage(1024)
+	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -26,14 +26,14 @@ func TestMessageReceived(t *testing.T) {
 }
 
 func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
 	newSize := uint32(100)
 	setSizeMessage := message.NewMessage(uint8(1), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
-	randomDataMessage := message.NewMessage(uint8(9), testHelpers.GenerateRandomBytes(120))
-	err := setSizeMessage.Send(clientConn)
+	randomDataMessage := testutil.GenerateTestRandomMessage(120)
+	_, err := setSizeMessage.Send(clientConn)
 	clientConn.MaxChunkSize = newSize
 	assert.Nil(t, err)
-	err = randomDataMessage.Send(clientConn)
+	_, err = randomDataMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	<-serverConn.Messages
@@ -49,10 +49,10 @@ func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 }
 
 func TestSetChunkSizeMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
 	newSize := uint32(1024)
-	testMessage := message.NewMessage(uint8(1), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
-	err := testMessage.Send(clientConn)
+	testMessage := message.NewMessage(message.TypeSetChunkSize, binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -64,24 +64,25 @@ func TestSetChunkSizeMessageReceived(t *testing.T) {
 }
 
 func TestAbortMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
-	testMessage := message.NewMessage(uint8(2), binary.BigEndian.AppendUint32(make([]byte, 0), uint32(2)))
-	err := testMessage.Send(clientConn)
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
+	testMessage := message.NewMessage(message.TypeAbortMessage, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(2)))
+	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
 	case receivedMessage := <-serverConn.Messages:
-		assert.Nil(t, receivedMessage)
+		assert.NotNil(t, receivedMessage)
+		assert.Equal(t, 0, len(serverConn.CurrentMessage.Data))
 	case <-serverConn.Errors:
 		t.FailNow()
 	}
 }
 
 func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
 	windowAcknowledgementSize := 1024
-	testMessage := testHelpers.GenerateTestWindowAcknowledgementSize(windowAcknowledgementSize)
-	err := testMessage.Send(clientConn)
+	windowAcknowledgementSizeMessage := testutil.GenerateTestWindowAcknowledgementSize(windowAcknowledgementSize)
+	_, err := windowAcknowledgementSizeMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -90,12 +91,26 @@ func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
 	case <-serverConn.Errors:
 		t.FailNow()
 	}
+	randomMessage := testutil.GenerateTestRandomMessage(windowAcknowledgementSize + 20)
+	_, err = randomMessage.Send(clientConn)
+	if err != nil {
+		return
+	}
+	select {
+	case acknowledgement := <-clientConn.Messages:
+		assert.Equal(t, message.TypeAcknowledgement, acknowledgement.TypeId)
+		assert.GreaterOrEqual(t, binary.BigEndian.Uint32(acknowledgement.Data[:4]), uint32(windowAcknowledgementSize))
+		assert.LessOrEqual(t, clientConn.UnacknowledgedBytes, uint32(windowAcknowledgementSize))
+	case <-clientConn.Errors:
+		t.FailNow()
+	}
+
 }
 
 func TestCommandMessageReceived(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
-	testMessage := testHelpers.GenerateTestConnectCommand()
-	err := testMessage.Send(clientConn)
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
+	testMessage := testutil.GenerateTestConnectCommand()
+	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -106,10 +121,10 @@ func TestCommandMessageReceived(t *testing.T) {
 	}
 }
 
-func TestConnectMessageFlow(t *testing.T) {
-	rtmpServer, clientConn := testHelpers.StartTestingServerWithHandshake(t)
-	testMessage := testHelpers.GenerateTestConnectCommand()
-	err := testMessage.Send(clientConn)
+func TestUnknownCommandMessageNoAnswer(t *testing.T) {
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
+	testMessage := testutil.GenerateTestUnknownCommand()
+	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
 	select {
@@ -118,8 +133,40 @@ func TestConnectMessageFlow(t *testing.T) {
 		t.FailNow()
 	}
 	select {
-	case sentTestMessage := <-clientConn.Messages:
-		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.SendWindowAcknowledgementSize), sentTestMessage.Data)
+	case <-clientConn.Messages:
+		t.FailNow()
+	case err = <-serverConn.Errors:
+		assert.NotNil(t, err)
+	}
+
+}
+
+func TestConnectMessageFlow(t *testing.T) {
+	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
+	testMessage := testutil.GenerateTestConnectCommand()
+	_, err := testMessage.Send(clientConn)
+	assert.Nil(t, err)
+	serverConn := <-rtmpServer.Connections
+	// client sends connect message
+	select {
+	case <-serverConn.Messages:
+	case <-serverConn.Errors:
+		t.FailNow()
+	}
+	// server sends window acknowledgement size
+	select {
+	case windowAcknowledgementSizeMessage := <-clientConn.Messages:
+		assert.Equal(t, message.TypeWindowAcknowledgementSize, windowAcknowledgementSizeMessage.TypeId)
+		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.SendWindowAcknowledgementSize), windowAcknowledgementSizeMessage.Data)
+	case <-clientConn.Errors:
+		t.FailNow()
+	}
+	// server sends peer bandwidth
+	select {
+	case peerBandwidthMessage := <-clientConn.Messages:
+		assert.Equal(t, message.TypeSetPeerBandwidth, peerBandwidthMessage.TypeId)
+		assert.Equal(t, 5, len(peerBandwidthMessage.Data))
+		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.SendWindowAcknowledgementSize), peerBandwidthMessage.Data[:4])
 	case <-clientConn.Errors:
 		t.FailNow()
 	}

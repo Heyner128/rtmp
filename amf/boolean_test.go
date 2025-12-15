@@ -8,8 +8,8 @@ import (
 
 func TestBooleanEncoding(t *testing.T) {
 	testBoolean := uint8(1)
-	amfBoolean := NewAmfBoolean(testBoolean)
-	amfMessage := NewAmfCommand(amfBoolean)
+	amfBoolean := NewBoolean(testBoolean)
+	amfMessage := NewCommand(amfBoolean)
 	assert.NotNil(t, amfMessage)
 	encodedBoolean := amfBoolean.Encode()
 	encodedMessage := amfMessage.Encode()
@@ -17,7 +17,7 @@ func TestBooleanEncoding(t *testing.T) {
 	assert.Equal(t, 2, len(encodedBoolean))
 	assert.Equal(t, booleanMarker, encodedBoolean[0])
 	assert.Equal(t, testBoolean, encodedBoolean[1])
-	_, decodedBoolean := decodeNextAmfBoolean(encodedBoolean)
+	_, decodedBoolean := decodeNextBoolean(encodedBoolean)
 	assert.Equal(t, amfBoolean, decodedBoolean)
 	assert.Equal(t, encodedMessage, encodedBoolean)
 }
@@ -27,6 +27,6 @@ func TestBooleanDecoding(t *testing.T) {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, 0x01)
 	bytes = append(bytes, testBoolean)
-	_, decodedBoolean := decodeNextAmfBoolean(bytes)
-	assert.Equal(t, decodedBoolean, NewAmfBoolean(testBoolean))
+	_, decodedBoolean := decodeNextBoolean(bytes)
+	assert.Equal(t, decodedBoolean, NewBoolean(testBoolean))
 }

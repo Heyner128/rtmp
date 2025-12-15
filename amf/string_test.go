@@ -15,16 +15,16 @@ func TestStringDecoding(t *testing.T) {
 	numberOfRunes := utf8.RuneCountInString(testString)
 	bytes = binary.BigEndian.AppendUint16(bytes, uint16(numberOfRunes))
 	bytes = append(bytes, []byte(testString)...)
-	_, decodedString := decodeNextAmfString(bytes)
-	assert.Equal(t, decodedString, NewAmfString(testString))
+	_, decodedString := decodeNextString(bytes)
+	assert.Equal(t, decodedString, NewString(testString))
 }
 
 func TestStringEncoding(t *testing.T) {
 	testString := "test string"
-	amfString := NewAmfString(testString)
-	amfMessage := NewAmfCommand(amfString)
+	amfString := NewString(testString)
+	amfMessage := NewCommand(amfString)
 	assert.NotNil(t, amfMessage)
-	_, decodedString := decodeNextAmfString(amfString.Encode())
+	_, decodedString := decodeNextString(amfString.Encode())
 	assert.Equal(t, decodedString, amfString)
 	assert.Equal(t, amfMessage.Encode(), amfString.Encode())
 }

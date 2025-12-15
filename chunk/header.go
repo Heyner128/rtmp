@@ -2,7 +2,7 @@ package chunk
 
 import (
 	"encoding/binary"
-	"rtmp/rtmpconn"
+	"rtmp/conn"
 )
 
 type Header struct {
@@ -19,12 +19,12 @@ func NewHeader(basicHeader BasicHeader, messageHeader MessageHeader, extendedTim
 	}
 }
 
-func ReadChunkHeader(conn *rtmpconn.RtmpConn) (*Header, error) {
-	basicHeader, err := ReadBasicHeader(conn)
+func ReadChunkHeader(connection *conn.Conn) (*Header, error) {
+	basicHeader, err := ReadBasicHeader(connection)
 	if err != nil {
 		return nil, err
 	}
-	messageHeader, err := ReadMessageHeader(conn, *basicHeader)
+	messageHeader, err := ReadMessageHeader(connection, *basicHeader)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func ReadChunkHeader(conn *rtmpconn.RtmpConn) (*Header, error) {
 	extendedTimestampBuffer := make([]byte, 0)
 	if messageHeader.Timestamp >= 16777215 {
 		extendedTimestampBuffer = make([]byte, 4)
-		_, err = conn.Read(extendedTimestampBuffer)
+		_, err = connection.Read(extendedTimestampBuffer)
 		if err != nil {
 			return nil, err
 		}
@@ -53,10 +53,10 @@ func NewBasicHeader(fmt uint8, chunkStreamId uint32) *BasicHeader {
 	}
 }
 
-func ReadBasicHeader(conn *rtmpconn.RtmpConn) (*BasicHeader, error) {
+func ReadBasicHeader(connection *conn.Conn) (*BasicHeader, error) {
 	firstByte := make([]byte, 1)
 	chunkStreamIdBuffer := make([]byte, 0)
-	_, err := conn.Read(firstByte)
+	_, err := connection.Read(firstByte)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func ReadBasicHeader(conn *rtmpconn.RtmpConn) (*BasicHeader, error) {
 	chunkStreamId := uint32(chunkStreamIdBuffer[0])
 	if chunkStreamIdBuffer[0] == 0x00 {
 		secondByte := make([]byte, 1)
-		_, err := conn.Read(secondByte)
+		_, err := connection.Read(secondByte)
 		if err != nil {
 			return nil, err
 		}
@@ -73,12 +73,12 @@ func ReadBasicHeader(conn *rtmpconn.RtmpConn) (*BasicHeader, error) {
 		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00, 0x00}, chunkStreamIdBuffer...))
 	} else if chunkStreamIdBuffer[0] == 0x3F {
 		secondByte := make([]byte, 1)
-		_, err := conn.Read(secondByte)
+		_, err := connection.Read(secondByte)
 		if err != nil {
 			return nil, err
 		}
 		thirdByte := make([]byte, 1)
-		_, err = conn.Read(thirdByte)
+		_, err = connection.Read(thirdByte)
 		if err != nil {
 			return nil, err
 		}
@@ -107,7 +107,7 @@ func NewMessageHeader(timestamp uint32, messageLength uint32, messageTypeId uint
 	}
 }
 
-func ReadMessageHeader(conn *rtmpconn.RtmpConn, basicHeader BasicHeader) (*MessageHeader, error) {
+func ReadMessageHeader(conn *conn.Conn, basicHeader BasicHeader) (*MessageHeader, error) {
 	timestampBuffer := make([]byte, 3)
 	var timestamp uint32
 	messageLengthBuffer := make([]byte, 0)

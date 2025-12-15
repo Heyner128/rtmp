@@ -1,4 +1,4 @@
-package rtmpconn
+package conn
 
 import (
 	"net"
@@ -16,19 +16,20 @@ func (message *Message) DataSize() uint32 {
 	return uint32(len(message.Data))
 }
 
-type RtmpConn struct {
+type Conn struct {
 	Conn                          net.Conn
 	MaxChunkSize                  uint32
 	NetworkTimeout                time.Duration
 	CurrentMessage                *Message
 	Messages                      chan *Message
+	UnacknowledgedBytes           uint32
 	WindowAcknowledgementSize     uint32
 	SendWindowAcknowledgementSize uint32
 	Errors                        chan error
 }
 
-func NewRtmpConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) *RtmpConn {
-	return &RtmpConn{
+func NewConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) *Conn {
+	return &Conn{
 		Conn:                          conn,
 		MaxChunkSize:                  maxChunkSize,
 		NetworkTimeout:                networkTimeout,
@@ -39,27 +40,27 @@ func NewRtmpConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duratio
 	}
 }
 
-func (rtmpConn RtmpConn) LocalAddr() net.Addr {
+func (rtmpConn *Conn) LocalAddr() net.Addr {
 	return rtmpConn.Conn.LocalAddr()
 }
 
-func (rtmpConn RtmpConn) RemoteAddr() net.Addr {
+func (rtmpConn *Conn) RemoteAddr() net.Addr {
 	return rtmpConn.Conn.RemoteAddr()
 }
 
-func (rtmpConn RtmpConn) SetDeadline(t time.Time) error {
+func (rtmpConn *Conn) SetDeadline(t time.Time) error {
 	return rtmpConn.Conn.SetDeadline(t)
 }
 
-func (rtmpConn RtmpConn) SetReadDeadline(t time.Time) error {
+func (rtmpConn *Conn) SetReadDeadline(t time.Time) error {
 	return rtmpConn.Conn.SetReadDeadline(t)
 }
 
-func (rtmpConn RtmpConn) SetWriteDeadline(t time.Time) error {
+func (rtmpConn *Conn) SetWriteDeadline(t time.Time) error {
 	return rtmpConn.Conn.SetWriteDeadline(t)
 }
 
-func (rtmpConn RtmpConn) Read(buffer []byte) (int, error) {
+func (rtmpConn *Conn) Read(buffer []byte) (int, error) {
 	err := rtmpConn.Conn.SetReadDeadline(time.Now().Add(rtmpConn.NetworkTimeout))
 	if err != nil {
 		rtmpConn.Errors <- err
@@ -73,7 +74,7 @@ func (rtmpConn RtmpConn) Read(buffer []byte) (int, error) {
 	return n, err
 }
 
-func (rtmpConn RtmpConn) Write(buffer []byte) (int, error) {
+func (rtmpConn *Conn) Write(buffer []byte) (int, error) {
 	err := rtmpConn.Conn.SetWriteDeadline(time.Now().Add(rtmpConn.NetworkTimeout))
 	if err != nil {
 		rtmpConn.Errors <- err
@@ -87,6 +88,6 @@ func (rtmpConn RtmpConn) Write(buffer []byte) (int, error) {
 	return n, err
 }
 
-func (rtmpConn RtmpConn) Close() error {
+func (rtmpConn *Conn) Close() error {
 	return rtmpConn.Conn.Close()
 }

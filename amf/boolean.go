@@ -2,17 +2,17 @@ package amf
 
 var booleanMarker = byte(0x01)
 
-type AmfBoolean uint8
+type Boolean uint8
 
-func NewAmfBoolean(bool uint8) AmfBoolean {
-	return AmfBoolean(bool)
+func NewBoolean(bool uint8) Boolean {
+	return Boolean(bool)
 }
 
-func (bool AmfBoolean) Encode() []byte {
+func (bool Boolean) Encode() []byte {
 	return []byte{booleanMarker, uint8(bool)}
 }
 
-func decodeNextAmfBoolean(bytes []byte) (int, AmfBoolean) {
+func decodeNextBoolean(bytes []byte) (int, Boolean) {
 	length := 2
-	return length, AmfBoolean(bytes[length-1])
+	return length, Boolean(bytes[length-1])
 }

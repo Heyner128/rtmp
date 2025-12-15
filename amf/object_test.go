@@ -12,7 +12,7 @@ func TestObjectEncoding(t *testing.T) {
 	object, _ := generateTestAmfObject()
 	bytes := object.Encode()
 	assert.NotNil(t, bytes)
-	_, decodedObject, _ := decodeNextAmfObject(bytes)
+	_, decodedObject, _ := decodeNextObject(bytes)
 	assert.Equal(t, decodedObject, object)
 }
 
@@ -21,7 +21,7 @@ func TestObjectDecodingFailWrongValueMarker(t *testing.T) {
 	bytes = append(bytes, 0x01)
 	bytes = append(bytes, []byte{0x00, 0x00}...)
 	bytes = append(bytes, 0x10)
-	_, _, err := decodeNextAmfObject(bytes)
+	_, _, err := decodeNextObject(bytes)
 	assert.Error(t, err)
 }
 
@@ -30,32 +30,32 @@ func TestObjectDecodingFailWrongMarker(t *testing.T) {
 	bytes = append(bytes, 0x01)
 	bytes = append(bytes, []byte{0x00, 0x00}...)
 	bytes = append(bytes, 0x09)
-	_, _, err := decodeNextAmfObject(bytes)
+	_, _, err := decodeNextObject(bytes)
 	assert.Error(t, err)
 }
 
 func TestObjectDecodingFailNotEnoughBytes(t *testing.T) {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, 0x00)
-	_, _, err := decodeNextAmfObject(bytes)
+	_, _, err := decodeNextObject(bytes)
 	assert.Error(t, err)
 }
 
 func TestObjectDecoding(t *testing.T) {
 	amfObject, bytes := generateTestAmfObject()
 
-	_, object, err := decodeNextAmfObject(bytes)
+	_, object, err := decodeNextObject(bytes)
 
 	assert.NoError(t, err)
 
-	assert.Equal(t, object, NewAmfObject(amfObject))
+	assert.Equal(t, object, NewObject(amfObject))
 }
 
-func generateTestAmfObject() (AmfObject, []byte) {
-	amfObject := make([]AmfObjectProperty, 3)
-	amfObject[0] = AmfObjectProperty{"propertyOne", NewAmfString("propertyOneValue")}
-	amfObject[1] = AmfObjectProperty{"propertyTwo", NewAmfString("propertyTwoValue")}
-	amfObject[2] = AmfObjectProperty{"propertyThree", NewAmfBoolean(0)}
+func generateTestAmfObject() (Object, []byte) {
+	amfObject := make([]ObjectProperty, 3)
+	amfObject[0] = ObjectProperty{"propertyOne", NewString("propertyOneValue")}
+	amfObject[1] = ObjectProperty{"propertyTwo", NewString("propertyTwoValue")}
+	amfObject[2] = ObjectProperty{"propertyThree", NewBoolean(0)}
 	bytes := make([]byte, 0)
 	bytes = append(bytes, 0x03)
 	// property one

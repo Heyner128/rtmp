@@ -5,14 +5,14 @@ import (
 	"math"
 	"net"
 	"rtmp/chunk"
-	"rtmp/testHelpers"
+	"rtmp/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestType0Chunk(t *testing.T) {
-	address, chunks := testHelpers.AcceptTestChunk(t)
+	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
 	basicHeader := chunk.NewBasicHeader(uint8(0), uint32(2))
 	messageHeader := chunk.NewMessageHeader(uint32(0), uint32(4), uint8(1), uint32(123456))
@@ -29,7 +29,7 @@ func TestType0Chunk(t *testing.T) {
 }
 
 func TestType1Chunk(t *testing.T) {
-	address, chunks := testHelpers.AcceptTestChunk(t)
+	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
 	basicHeader := chunk.NewBasicHeader(uint8(1), uint32(2))
 	messageHeader := chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
@@ -46,7 +46,7 @@ func TestType1Chunk(t *testing.T) {
 }
 
 func TestType2Chunk(t *testing.T) {
-	address, chunks := testHelpers.AcceptTestChunk(t)
+	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
 	basicHeader := chunk.NewBasicHeader(uint8(2), uint32(2))
 	messageHeader := chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
@@ -63,7 +63,7 @@ func TestType2Chunk(t *testing.T) {
 }
 
 func TestType3Chunk(t *testing.T) {
-	address, chunks := testHelpers.AcceptTestChunk(t)
+	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
 	basicHeader := chunk.NewBasicHeader(uint8(3), uint32(2))
 	messageHeader := chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
@@ -80,7 +80,7 @@ func TestType3Chunk(t *testing.T) {
 }
 
 func TestChunkExtendedTimestamp(t *testing.T) {
-	address, chunks := testHelpers.AcceptTestChunk(t)
+	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
 	basicHeader := chunk.NewBasicHeader(uint8(0), uint32(2))
 	messageHeader := chunk.NewMessageHeader(math.MaxUint32, uint32(32), uint8(1), uint32(0))

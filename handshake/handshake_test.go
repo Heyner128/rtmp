@@ -3,7 +3,7 @@ package handshake_test
 import (
 	"net"
 	"rtmp/handshake"
-	"rtmp/testHelpers"
+	"rtmp/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,9 +16,9 @@ func TestGenerateTimestamp(t *testing.T) {
 }
 
 func TestHandshake(t *testing.T) {
-	address := testHelpers.AcceptTestHandshake(t)
+	address := testutil.AcceptTestHandshake(t)
 	conn, _ := net.Dial("tcp", address)
-	hs, err := testHelpers.RequestTestHandshake(t, conn)
+	hs, err := testutil.RequestTestHandshake(t, conn)
 	assert.Nil(t, err)
 	expectedServerVersion := handshake.NewVersion(3)
 	assert.Equal(t, expectedServerVersion.Version, hs.ServerVersion.Version)
