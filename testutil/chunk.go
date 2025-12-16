@@ -15,7 +15,7 @@ func AcceptTestChunk(t *testing.T) (string, chan chunk.Chunk) {
 
 	listener, _ := net.Listen("tcp", address)
 
-	rtmpConn := conn.NewConn(nil, 128, 10*time.Second)
+	connection, _ := conn.NewConn(nil, 128, 10*time.Second)
 
 	chunks := make(chan chunk.Chunk)
 
@@ -25,8 +25,8 @@ func AcceptTestChunk(t *testing.T) (string, chan chunk.Chunk) {
 			if err != nil {
 				continue
 			}
-			rtmpConn.Conn = netConnection
-			receivedChunk, err := message.Accept(rtmpConn)
+			connection.Conn = netConnection
+			receivedChunk, err := message.Accept(connection)
 			if err != nil || receivedChunk == nil {
 				continue
 			}

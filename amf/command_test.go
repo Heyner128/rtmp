@@ -35,10 +35,10 @@ func TestMultipleTypesDecode(t *testing.T) {
 	bytes := make([]byte, 0)
 	bytes = append(bytes, NewString(testString).Encode()...)
 	bytes = append(bytes, NewNumber(testNumber).Encode()...)
-	bytes = append(bytes, NewObject(testObject).Encode()...)
+	bytes = append(bytes, NewObject(testObject...).Encode()...)
 	amfCommand, _ := DecodeCommand(bytes)
 	assert.NotNil(t, amfCommand)
 	assert.Equal(t, amfCommand.Parts[0], NewString(testString))
 	assert.Equal(t, amfCommand.Parts[1], NewNumber(testNumber))
-	assert.Equal(t, amfCommand.Parts[2], NewObject(testObject))
+	assert.Equal(t, amfCommand.Parts[2], NewObject(testObject...))
 }

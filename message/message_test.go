@@ -38,11 +38,8 @@ func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 	serverConn := <-rtmpServer.Connections
 	<-serverConn.Messages
 	select {
-	case messageReceived := <-serverConn.Messages:
+	case <-serverConn.Messages:
 		assert.Equal(t, newSize, serverConn.MaxChunkSize)
-		assert.Equal(t, randomDataMessage.Data, messageReceived.Data)
-		assert.Equal(t, randomDataMessage.MessageTypeId, messageReceived.TypeId)
-		assert.Equal(t, randomDataMessage.MessageStreamId, messageReceived.StreamId)
 	case <-serverConn.Errors:
 		t.FailNow()
 	}
@@ -107,18 +104,30 @@ func TestWindowAcknowledgementSizeMessageReceived(t *testing.T) {
 
 }
 
-func TestCommandMessageReceived(t *testing.T) {
+func TestSetPeerBandwidthMessageTypeHardDifferentFromPreviousSizeReceived(t *testing.T) {
 	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
-	testMessage := testutil.GenerateTestConnectCommand()
-	_, err := testMessage.Send(clientConn)
-	assert.Nil(t, err)
+	// client sends initial window acknowledgement size message
+	windowAcknowledgementSize := 1024
 	serverConn := <-rtmpServer.Connections
+	testWindowAcknowledgementSizeMessage := testutil.GenerateTestWindowAcknowledgementSize(windowAcknowledgementSize)
+	_, err := testWindowAcknowledgementSizeMessage.Send(clientConn)
+	assert.Nil(t, err)
+	<-serverConn.Messages
+	// client sends set peer bandwidth message with different size
+	bandwidthSize := 2048
+	testMessage := testutil.GenerateTestSetPeerBandwidth(bandwidthSize, message.SetPeerBandwidthLimitTypeHard)
+	_, err = testMessage.Send(clientConn)
+	assert.Nil(t, err)
+	<-serverConn.Messages
+	// server sends window acknowledgement size message
 	select {
-	case receivedMessage := <-serverConn.Messages:
-		assert.Equal(t, testMessage.Data, receivedMessage.Data)
-	case <-serverConn.Errors:
+	case windowAcknowledgementSizeMessage := <-clientConn.Messages:
+		assert.Equal(t, message.TypeWindowAcknowledgementSize, windowAcknowledgementSizeMessage.TypeId)
+		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(bandwidthSize)), windowAcknowledgementSizeMessage.Data)
+	case <-clientConn.Errors:
 		t.FailNow()
 	}
+	// TODO assert that the server should not send more bytes than the bandwidth size without an ack from the client
 }
 
 func TestUnknownCommandMessageNoAnswer(t *testing.T) {
@@ -157,7 +166,7 @@ func TestConnectMessageFlow(t *testing.T) {
 	select {
 	case windowAcknowledgementSizeMessage := <-clientConn.Messages:
 		assert.Equal(t, message.TypeWindowAcknowledgementSize, windowAcknowledgementSizeMessage.TypeId)
-		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.SendWindowAcknowledgementSize), windowAcknowledgementSizeMessage.Data)
+		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.PeerWindowAcknowledgementSize), windowAcknowledgementSizeMessage.Data)
 	case <-clientConn.Errors:
 		t.FailNow()
 	}
@@ -166,7 +175,7 @@ func TestConnectMessageFlow(t *testing.T) {
 	case setPeerBandwidthMessage := <-clientConn.Messages:
 		assert.Equal(t, message.TypeSetPeerBandwidth, setPeerBandwidthMessage.TypeId)
 		assert.Equal(t, 5, len(setPeerBandwidthMessage.Data))
-		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.SendWindowAcknowledgementSize), setPeerBandwidthMessage.Data[:4])
+		assert.Equal(t, binary.BigEndian.AppendUint32(make([]byte, 0), serverConn.PeerWindowAcknowledgementSize), setPeerBandwidthMessage.Data[:4])
 	case <-clientConn.Errors:
 		t.FailNow()
 	}

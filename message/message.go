@@ -170,6 +170,7 @@ func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Messag
 		connection.CurrentMessage = nil
 	} else if completedMessage.TypeId == TypeWindowAcknowledgementSize {
 		connection.WindowAcknowledgementSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4])
+	} else if completedMessage.TypeId == TypeSetPeerBandwidth {
 	} else if completedMessage.TypeId == TypeCommandMessageAmf0 {
 		command, err := amf.DecodeCommand(connection.CurrentMessage.Data)
 		if err != nil {
@@ -190,13 +191,13 @@ func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Messag
 
 func doConnectMessageFlow(connection *conn.Conn, err error) error {
 	// server sends window acknowledgement size
-	sendWindowAcknowledgementSize := newWindowAcknowledgementSizeMessage(connection.SendWindowAcknowledgementSize)
-	_, err = sendWindowAcknowledgementSize.Send(*connection)
+	windowAcknowledgementSizeMessage := newWindowAcknowledgementSizeMessage(connection.PeerWindowAcknowledgementSize)
+	_, err = windowAcknowledgementSizeMessage.Send(*connection)
 	if err != nil {
 		return err
 	}
 	// server sends set peer bandwidth
-	setPeerBandwidthMessage := newSetPeerBandwidthMessage(connection.SendWindowAcknowledgementSize, SetPeerBandwidthLimitTypeHard)
+	setPeerBandwidthMessage := newSetPeerBandwidthMessage(connection.PeerWindowAcknowledgementSize, SetPeerBandwidthLimitTypeHard)
 	_, err = setPeerBandwidthMessage.Send(*connection)
 	if err != nil {
 		return err

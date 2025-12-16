@@ -31,7 +31,7 @@ func (object Object) Encode() []byte {
 }
 
 // TODO make this variadic
-func NewObject(object []ObjectProperty) Object {
+func NewObject(object ...ObjectProperty) Object {
 	return object
 }
 

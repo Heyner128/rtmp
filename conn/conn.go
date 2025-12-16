@@ -24,20 +24,32 @@ type Conn struct {
 	Messages                      chan *Message
 	UnacknowledgedBytes           uint32
 	WindowAcknowledgementSize     uint32
-	SendWindowAcknowledgementSize uint32
+	PeerWindowAcknowledgementSize uint32
+	BandwidthSize                 uint32
 	Errors                        chan error
 }
 
-func NewConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) *Conn {
-	return &Conn{
+func NewConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) (*Conn, error) {
+	newConn := &Conn{
 		Conn:                          conn,
 		MaxChunkSize:                  maxChunkSize,
 		NetworkTimeout:                networkTimeout,
 		CurrentMessage:                &Message{},
-		SendWindowAcknowledgementSize: 256 * 1024,
+		PeerWindowAcknowledgementSize: 256 * 1024,
 		Messages:                      make(chan *Message, 1),
 		Errors:                        make(chan error),
 	}
+	err := newConn.Conn.SetReadDeadline(time.Now().Add(newConn.NetworkTimeout))
+	if err != nil {
+		newConn.Errors <- err
+		return nil, err
+	}
+	err = newConn.Conn.SetWriteDeadline(time.Now().Add(newConn.NetworkTimeout))
+	if err != nil {
+		newConn.Errors <- err
+		return nil, err
+	}
+	return newConn, nil
 }
 
 func (rtmpConn *Conn) LocalAddr() net.Addr {
@@ -61,11 +73,6 @@ func (rtmpConn *Conn) SetWriteDeadline(t time.Time) error {
 }
 
 func (rtmpConn *Conn) Read(buffer []byte) (int, error) {
-	err := rtmpConn.Conn.SetReadDeadline(time.Now().Add(rtmpConn.NetworkTimeout))
-	if err != nil {
-		rtmpConn.Errors <- err
-		return 0, err
-	}
 	n, err := rtmpConn.Conn.Read(buffer)
 	if err != nil {
 		rtmpConn.Errors <- err
@@ -75,11 +82,6 @@ func (rtmpConn *Conn) Read(buffer []byte) (int, error) {
 }
 
 func (rtmpConn *Conn) Write(buffer []byte) (int, error) {
-	err := rtmpConn.Conn.SetWriteDeadline(time.Now().Add(rtmpConn.NetworkTimeout))
-	if err != nil {
-		rtmpConn.Errors <- err
-		return 0, err
-	}
 	n, err := rtmpConn.Conn.Write(buffer)
 	if err != nil {
 		rtmpConn.Errors <- err

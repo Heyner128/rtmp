@@ -41,7 +41,7 @@ func (server *Server) Accept() {
 	}(server.Listener)
 	for {
 		netConnection, _ := server.Listener.Accept()
-		connection := conn.NewConn(netConnection, server.DefaultMaxChunkSize, server.DefaultNetworkTimeout)
+		connection, _ := conn.NewConn(netConnection, server.DefaultMaxChunkSize, server.DefaultNetworkTimeout)
 		server.Connections <- connection
 		go func() {
 			err := handleConnection(connection)

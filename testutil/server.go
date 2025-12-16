@@ -25,7 +25,7 @@ func StartTestingServerWithHandshake(t *testing.T) (*server.Server, conn.Conn) {
 	rtmpServer := StartTestingServer(t)
 	netConnection, _ := net.Dial("tcp", rtmpServer.Listener.Addr().String())
 	err := netConnection.SetDeadline(time.Now().Add(3 * time.Second))
-	clientConn := conn.NewConn(netConnection, rtmpServer.DefaultMaxChunkSize, rtmpServer.DefaultNetworkTimeout)
+	clientConn, _ := conn.NewConn(netConnection, rtmpServer.DefaultMaxChunkSize, rtmpServer.DefaultNetworkTimeout)
 	if err != nil {
 		t.Error(err)
 	}

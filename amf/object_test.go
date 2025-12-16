@@ -48,7 +48,7 @@ func TestObjectDecoding(t *testing.T) {
 
 	assert.NoError(t, err)
 
-	assert.Equal(t, object, NewObject(amfObject))
+	assert.Equal(t, object, NewObject(amfObject...))
 }
 
 func generateTestAmfObject() (Object, []byte) {
