@@ -39,16 +39,19 @@ func NewConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) (
 		Messages:                      make(chan *Message, 1),
 		Errors:                        make(chan error),
 	}
-	err := newConn.Conn.SetReadDeadline(time.Now().Add(newConn.NetworkTimeout))
-	if err != nil {
-		newConn.Errors <- err
-		return nil, err
+	if newConn.Conn != nil {
+		err := newConn.Conn.SetReadDeadline(time.Now().Add(newConn.NetworkTimeout))
+		if err != nil {
+			newConn.Errors <- err
+			return nil, err
+		}
+		err = newConn.Conn.SetWriteDeadline(time.Now().Add(newConn.NetworkTimeout))
+		if err != nil {
+			newConn.Errors <- err
+			return nil, err
+		}
 	}
-	err = newConn.Conn.SetWriteDeadline(time.Now().Add(newConn.NetworkTimeout))
-	if err != nil {
-		newConn.Errors <- err
-		return nil, err
-	}
+
 	return newConn, nil
 }
 
