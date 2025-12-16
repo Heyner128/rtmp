@@ -171,6 +171,7 @@ func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Messag
 	} else if completedMessage.TypeId == TypeWindowAcknowledgementSize {
 		connection.WindowAcknowledgementSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4])
 	} else if completedMessage.TypeId == TypeSetPeerBandwidth {
+		// TODO implement peer bandwidth
 	} else if completedMessage.TypeId == TypeCommandMessageAmf0 {
 		command, err := amf.DecodeCommand(connection.CurrentMessage.Data)
 		if err != nil {
