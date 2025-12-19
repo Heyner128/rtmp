@@ -30,7 +30,6 @@ func (object Object) Encode() []byte {
 	return bytes
 }
 
-// TODO make this variadic
 func NewObject(object ...ObjectProperty) Object {
 	return object
 }
