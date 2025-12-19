@@ -20,7 +20,7 @@ func StartTestingServer(t *testing.T) *server.Server {
 	return rtmpServer
 }
 
-func StartTestingServerWithHandshake(t *testing.T) (*server.Server, conn.Conn) {
+func StartTestingServerWithHandshake(t *testing.T) (*server.Server, *conn.Conn) {
 	t.Helper()
 	rtmpServer := StartTestingServer(t)
 	netConnection, _ := net.Dial("tcp", rtmpServer.Listener.Addr().String())
@@ -41,5 +41,5 @@ func StartTestingServerWithHandshake(t *testing.T) (*server.Server, conn.Conn) {
 	if err != nil {
 		t.Error(err)
 	}
-	return rtmpServer, *clientConn
+	return rtmpServer, clientConn
 }

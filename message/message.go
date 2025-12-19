@@ -2,6 +2,7 @@ package message
 
 import (
 	"encoding/binary"
+	"errors"
 	"log"
 	"math/rand"
 	"rtmp/amf"
@@ -51,26 +52,37 @@ func generateChunkStreamId() uint32 {
 	return uint32(rand.Intn(maxId-minId) + minId)
 }
 
-func newWindowAcknowledgementSizeMessage(acknowledgementSize uint32) *Message {
-	return NewMessage(TypeWindowAcknowledgementSize, binary.BigEndian.AppendUint32(make([]byte, 0), acknowledgementSize))
+func NewWindowAcknowledgementSizeMessage(acknowledgementSize int) *Message {
+	return NewMessage(TypeWindowAcknowledgementSize, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(acknowledgementSize)))
 }
 
-func newSetPeerBandwidthMessage(size uint32, limitType uint8) *Message {
-	content := binary.BigEndian.AppendUint32(make([]byte, 0), size)
+func NewSetPeerBandwidthMessage(size int, limitType uint8) *Message {
+	content := binary.BigEndian.AppendUint32(make([]byte, 0), uint32(size))
 	content = append(content, limitType)
 	return NewMessage(TypeSetPeerBandwidth, content)
 }
 
-func newAcknowledgementMessage(acknowledgementSize uint32) *Message {
-	return NewMessage(TypeAcknowledgement, binary.BigEndian.AppendUint32(make([]byte, 0), acknowledgementSize))
+func NewAcknowledgementMessage(acknowledgementSize int) *Message {
+	return NewMessage(TypeAcknowledgement, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(acknowledgementSize)))
 
 }
 
-func (message *Message) Send(conn conn.Conn) (int, error) {
+func (message *Message) Send(conn *conn.Conn) (int, error) {
 	bytesSent := 0
 	for _, nChunk := range message.BuildChunks(int(conn.MaxChunkSize)) {
+		if conn.UnacknowledgedBytesSent > 0 && conn.PeerWindowAcknowledgementSize > 0 && conn.UnacknowledgedBytesSent >= conn.PeerWindowAcknowledgementSize {
+			select {
+			case clientAcknowledgement := <-conn.Messages:
+				if clientAcknowledgement.TypeId == TypeAcknowledgement {
+					conn.UnacknowledgedBytesSent = 0
+				}
+			case <-conn.Errors:
+				return 0, errors.New("bandwidth size exceeded")
+			}
+		}
 		n, err := conn.Write(nChunk.Encode())
 		bytesSent += n
+		conn.UnacknowledgedBytesSent += uint32(n)
 		if err != nil {
 			return 0, err
 		}
@@ -100,7 +112,7 @@ func (message *Message) BuildChunks(chunkSize int) []chunk.Chunk {
 }
 
 func isProtocolControlMessage(messageTypeId uint8) bool {
-	return messageTypeId == 0x01 || messageTypeId == 0x02 || messageTypeId == 0x03 || messageTypeId == 0x05 || messageTypeId == 0x06
+	return messageTypeId == TypeSetChunkSize || messageTypeId == TypeAbortMessage || messageTypeId == TypeAcknowledgement || messageTypeId == TypeWindowAcknowledgementSize || messageTypeId == TypeSetPeerBandwidth
 }
 
 func Accept(connection *conn.Conn) (*chunk.Chunk, error) {
@@ -117,11 +129,11 @@ func Accept(connection *conn.Conn) (*chunk.Chunk, error) {
 		return nil, err
 	}
 	receivedChunk := chunk.NewChunk(*header, data)
-	connection.UnacknowledgedBytes += uint32(len(receivedChunk.Encode()))
-	if connection.WindowAcknowledgementSize > 0 && connection.UnacknowledgedBytes >= connection.WindowAcknowledgementSize {
-		acknowledgementMessage := newAcknowledgementMessage(connection.UnacknowledgedBytes)
-		_, err = acknowledgementMessage.Send(*connection)
-		connection.UnacknowledgedBytes = 0
+	connection.UnacknowledgedBytesReceived += uint32(len(receivedChunk.Encode()))
+	if connection.WindowAcknowledgementSize > 0 && connection.UnacknowledgedBytesReceived >= connection.WindowAcknowledgementSize {
+		acknowledgementMessage := NewAcknowledgementMessage(int(connection.UnacknowledgedBytesReceived))
+		_, err = acknowledgementMessage.Send(connection)
+		connection.UnacknowledgedBytesReceived = 0
 		if err != nil {
 			return nil, err
 		}
@@ -171,7 +183,12 @@ func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Messag
 	} else if completedMessage.TypeId == TypeWindowAcknowledgementSize {
 		connection.WindowAcknowledgementSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4])
 	} else if completedMessage.TypeId == TypeSetPeerBandwidth {
-		// TODO implement peer bandwidth
+		connection.PeerWindowAcknowledgementSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4])
+		windowAcknowledgementSizeMessage := NewWindowAcknowledgementSizeMessage(int(connection.PeerWindowAcknowledgementSize))
+		_, err := windowAcknowledgementSizeMessage.Send(connection)
+		if err != nil {
+			return err
+		}
 	} else if completedMessage.TypeId == TypeCommandMessageAmf0 {
 		command, err := amf.DecodeCommand(connection.CurrentMessage.Data)
 		if err != nil {
@@ -192,14 +209,14 @@ func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Messag
 
 func doConnectMessageFlow(connection *conn.Conn, err error) error {
 	// server sends window acknowledgement size
-	windowAcknowledgementSizeMessage := newWindowAcknowledgementSizeMessage(connection.PeerWindowAcknowledgementSize)
-	_, err = windowAcknowledgementSizeMessage.Send(*connection)
+	windowAcknowledgementSizeMessage := NewWindowAcknowledgementSizeMessage(int(connection.PeerWindowAcknowledgementSize))
+	_, err = windowAcknowledgementSizeMessage.Send(connection)
 	if err != nil {
 		return err
 	}
 	// server sends set peer bandwidth
-	setPeerBandwidthMessage := newSetPeerBandwidthMessage(connection.PeerWindowAcknowledgementSize, SetPeerBandwidthLimitTypeHard)
-	_, err = setPeerBandwidthMessage.Send(*connection)
+	setPeerBandwidthMessage := NewSetPeerBandwidthMessage(int(connection.PeerWindowAcknowledgementSize), SetPeerBandwidthLimitTypeHard)
+	_, err = setPeerBandwidthMessage.Send(connection)
 	if err != nil {
 		return err
 	}

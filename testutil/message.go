@@ -1,7 +1,6 @@
 package testutil
 
 import (
-	"encoding/binary"
 	"math/rand"
 	"rtmp/amf"
 	"rtmp/message"
@@ -33,16 +32,6 @@ func GenerateTestUnknownCommand() message.Message {
 
 func GenerateTestRandomMessage(size int) message.Message {
 	return *message.NewMessage(message.TypeVideo, generateRandomBytes(size))
-}
-
-func GenerateTestWindowAcknowledgementSize(acknowledgementSize int) message.Message {
-	return *message.NewMessage(message.TypeWindowAcknowledgementSize, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(acknowledgementSize)))
-}
-
-func GenerateTestSetPeerBandwidth(size int, limitType uint8) message.Message {
-	contents := binary.BigEndian.AppendUint32(make([]byte, 0), uint32(size))
-	contents = append(contents, limitType)
-	return *message.NewMessage(message.TypeSetPeerBandwidth, contents)
 }
 
 func generateRandomBytes(length int) []byte {

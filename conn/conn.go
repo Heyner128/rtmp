@@ -22,10 +22,10 @@ type Conn struct {
 	NetworkTimeout                time.Duration
 	CurrentMessage                *Message
 	Messages                      chan *Message
-	UnacknowledgedBytes           uint32
+	UnacknowledgedBytesReceived   uint32
+	UnacknowledgedBytesSent       uint32
 	WindowAcknowledgementSize     uint32
 	PeerWindowAcknowledgementSize uint32
-	BandwidthSize                 uint32
 	Errors                        chan error
 }
 
