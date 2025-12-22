@@ -35,7 +35,7 @@ func NewConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) (
 		MaxChunkSize:                  maxChunkSize,
 		NetworkTimeout:                networkTimeout,
 		CurrentMessage:                &Message{},
-		PeerWindowAcknowledgementSize: 256 * 1024,
+		PeerWindowAcknowledgementSize: 2 * 1024,
 		Messages:                      make(chan *Message, 1),
 		Errors:                        make(chan error),
 	}

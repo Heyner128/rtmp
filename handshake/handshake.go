@@ -1,6 +1,7 @@
 package handshake
 
 import (
+	"errors"
 	"log"
 	"net"
 	"time"
@@ -23,7 +24,6 @@ func Accept(conn net.Conn) error {
 	}
 	start := time.Now()
 	clientTimestamp, err := ReadTimestamp(conn)
-	clientTimestampReadingTimeInMs := time.Since(start).Milliseconds()
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func Accept(conn net.Conn) error {
 	//sends S2
 	serverEcho := Echo{
 		Timestamp:  clientTimestamp.Timestamp,
-		TimeStamp2: uint32(uint64(clientTimestamp.Timestamp) + uint64(clientTimestampReadingTimeInMs)),
+		TimeStamp2: uint32(time.Since(start).Milliseconds()),
 		Random:     clientTimestamp.Random,
 	}
 	err = serverEcho.Send(conn)
@@ -50,7 +50,10 @@ func Accept(conn net.Conn) error {
 		return err
 	}
 	log.Println("ACK sent")
-	_, err = ReadEcho(conn, serverTimestamp)
+	echo, err := ReadEcho(conn, serverTimestamp)
+	if echo != nil && (echo.Timestamp != serverTimestamp.Timestamp || echo.Random != serverTimestamp.Random) {
+		return errors.New("peer timestamp echo does not match")
+	}
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ func GenerateTestConnectCommand() message.Message {
 			amf.ObjectProperty{Name: "objectEncoding", Value: amf.NewNumber(0)},
 		),
 	)
-	return *message.NewMessage(message.TypeCommandMessageAmf0, connectCommand.Encode())
+	return *message.NewMessage(message.TypeCommandMessageAmf0, rand.Uint32(), connectCommand.Encode())
 }
 
 func GenerateTestUnknownCommand() message.Message {
@@ -27,11 +27,11 @@ func GenerateTestUnknownCommand() message.Message {
 			amf.ObjectProperty{Name: "prop2", Value: amf.NewNumber(0)},
 		),
 	)
-	return *message.NewMessage(message.TypeCommandMessageAmf0, connectCommand.Encode())
+	return *message.NewMessage(message.TypeCommandMessageAmf0, rand.Uint32(), connectCommand.Encode())
 }
 
 func GenerateTestRandomMessage(size int) message.Message {
-	return *message.NewMessage(message.TypeVideo, generateRandomBytes(size))
+	return *message.NewMessage(message.TypeVideo, rand.Uint32(), generateRandomBytes(size))
 }
 
 func generateRandomBytes(length int) []byte {
