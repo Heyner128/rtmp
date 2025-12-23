@@ -13,7 +13,7 @@ import (
 
 func TestMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
-	testMessage := testutil.GenerateTestRandomMessage(1024)
+	testMessage := testutil.GenerateTestRandomMessage(256)
 	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
@@ -30,7 +30,7 @@ func TestMessageReceived(t *testing.T) {
 func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
 	newSize := uint32(100)
-	setSizeMessage := message.NewMessage(uint8(1), rand.Uint32(), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	setSizeMessage := message.NewMessage(uint8(1), rand.Uint32(), binary.BigEndian.AppendUint32(make([]byte, 0), newSize&0x7FFFFFFF))
 	randomDataMessage := testutil.GenerateTestRandomMessage(120)
 	_, err := setSizeMessage.Send(clientConn)
 	clientConn.MaxChunkSize = newSize
@@ -121,6 +121,7 @@ func TestSetPeerBandwidthMessageTypeHardDifferentFromPreviousSizeReceived(t *tes
 	testMessage := message.NewSetPeerBandwidthMessage(messageStreamId, bandwidthSize, message.SetPeerBandwidthLimitTypeHard)
 	_, err = testMessage.Send(clientConn)
 	assert.Nil(t, err)
+	<-serverConn.Messages
 	// server should send window acknowledgement size message
 	select {
 	case windowAcknowledgementSizeMessage := <-clientConn.Messages:
@@ -174,7 +175,8 @@ func TestConnectMessageFlow(t *testing.T) {
 	// server receives connect message
 	select {
 	case connectMessage := <-serverConn.Messages:
-		decodedConnectMessage, _ := amf.DecodeCommand(connectMessage.Data)
+		decodedConnectMessage, err := amf.DecodeCommand(connectMessage.Data)
+		assert.Nil(t, err)
 		assert.Equal(t, message.TypeCommandMessageAmf0, connectMessage.TypeId)
 		assert.Equal(t, amf.NewString("connect"), decodedConnectMessage.Parts[0])
 	case <-serverConn.Errors:
@@ -223,8 +225,11 @@ func TestConnectMessageFlow(t *testing.T) {
 	//server sends result command message
 	select {
 	case resultCommandMessage := <-clientConn.Messages:
-		decodedResultCommandMessage, _ := amf.DecodeCommand(resultCommandMessage.Data)
+		decodedResultCommandMessage, err := amf.DecodeCommand(resultCommandMessage.Data)
+		assert.Nil(t, err)
 		assert.Equal(t, amf.NewString("_result"), decodedResultCommandMessage.Parts[0])
 		assert.Equal(t, amf.NewNumber(1), decodedResultCommandMessage.Parts[1])
+	case <-clientConn.Errors:
+		t.FailNow()
 	}
 }

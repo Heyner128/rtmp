@@ -3,8 +3,6 @@ package amf
 import (
 	"encoding/binary"
 	"errors"
-	"iter"
-	"math"
 )
 
 var objectMarker = byte(0x03)
@@ -42,33 +40,24 @@ func decodeNextObject(bytes []byte) (int, Object, error) {
 		return 0, nil, errors.New("Can't decode object, object marker is not 0x03")
 	}
 	object := make(Object, 0)
-	totalLength := 0
-	for length, property := range decodeObjectProperties(bytes) {
-		object = append(object, property)
-		totalLength += length
-	}
-	return totalLength, object, nil
-}
+	pointer := 1
 
-func decodeObjectProperties(bytes []byte) iter.Seq2[int, ObjectProperty] {
-	return func(yield func(int, ObjectProperty) bool) {
-		pointer := 1
-		maxObjectLength := math.MaxUint16
-		for {
-			propertyNameLength := binary.BigEndian.Uint16(bytes[pointer : pointer+2])
-			pointer += 2
-			propertyName := string(bytes[pointer : pointer+int(propertyNameLength)])
-			pointer += int(propertyNameLength)
-			if (bytes[pointer] == objectEndMarker && propertyNameLength == uint16(0)) || pointer >= maxObjectLength {
-				pointer++
-				break
-			}
-			propertyValueLength, propertyValue := decodeNextValueType(bytes[pointer:])
-			pointer += propertyValueLength
-			property := ObjectProperty{propertyName, propertyValue}
-			if !yield(pointer, property) {
-				return
-			}
+	for {
+		propertyNameLength := binary.BigEndian.Uint16(bytes[pointer : pointer+2])
+		pointer += 2
+		propertyName := string(bytes[pointer : pointer+int(propertyNameLength)])
+		pointer += int(propertyNameLength)
+		if propertyNameLength == 0 && bytes[pointer] == objectEndMarker {
+			pointer++
+			break
 		}
+		propertyValueLength, propertyValue := decodeNextValueType(bytes[pointer:])
+		if propertyValue == nil {
+			return 0, nil, errors.New("Can't decode object property value")
+		}
+		pointer += propertyValueLength
+
+		object = append(object, ObjectProperty{propertyName, propertyValue})
 	}
+	return pointer, object, nil
 }

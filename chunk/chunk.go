@@ -35,8 +35,9 @@ func (chunk *Chunk) encodeBasicHeader() []byte {
 		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x00)
 		basicHeader = append(basicHeader, uint8(chunk.Header.BasicHeader.ChunkStreamId-64))
 	} else if chunk.Header.BasicHeader.ChunkStreamId >= 320 && chunk.Header.BasicHeader.ChunkStreamId <= 65599 {
-		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x3F)
-		basicHeader = binary.BigEndian.AppendUint16(basicHeader, uint16(chunk.Header.BasicHeader.ChunkStreamId-64))
+		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x01)
+		basicHeader = append(basicHeader, uint8((chunk.Header.BasicHeader.ChunkStreamId-64)&0xFF))
+		basicHeader = append(basicHeader, uint8((chunk.Header.BasicHeader.ChunkStreamId-64)>>8))
 	}
 	return basicHeader
 }
@@ -45,7 +46,7 @@ func (chunk *Chunk) encodeMessageHeader() ([]byte, []byte) {
 	messageHeader := make([]byte, 0)
 	extendedTimeStamp := make([]byte, 0)
 	if chunk.Header.BasicHeader.Fmt <= 2 {
-		if chunk.Header.MessageHeader.Timestamp >= 16777215 {
+		if chunk.Header.MessageHeader.Timestamp >= 0xFFFFFF {
 			messageHeader = append(messageHeader, []byte{0xFF, 0xFF, 0xFF}...)
 			extendedTimeStamp = binary.BigEndian.AppendUint32(extendedTimeStamp, chunk.Header.ExtendedTimestamp)
 		} else {

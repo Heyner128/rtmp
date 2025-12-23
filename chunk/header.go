@@ -55,23 +55,24 @@ func NewBasicHeader(fmt uint8, chunkStreamId uint32) *BasicHeader {
 
 func ReadBasicHeader(connection *conn.Conn) (*BasicHeader, error) {
 	firstByte := make([]byte, 1)
-	chunkStreamIdBuffer := make([]byte, 0)
 	_, err := connection.Read(firstByte)
 	if err != nil {
 		return nil, err
 	}
-	chunkStreamIdBuffer = []byte{firstByte[0] & 0x3F}
 	fmt := (firstByte[0] & 0xC0) >> 6
-	chunkStreamId := uint32(chunkStreamIdBuffer[0])
-	if chunkStreamIdBuffer[0] == 0x00 {
+
+	chunkStreamIdIndicator := firstByte[0] & 0x3F
+
+	var chunkStreamId uint32
+
+	if chunkStreamIdIndicator == 0x00 {
 		secondByte := make([]byte, 1)
 		_, err := connection.Read(secondByte)
 		if err != nil {
 			return nil, err
 		}
-		chunkStreamIdBuffer = binary.BigEndian.AppendUint32(make([]byte, 0), uint32(secondByte[0])+64)[1:]
-		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00, 0x00}, chunkStreamIdBuffer...))
-	} else if chunkStreamIdBuffer[0] == 0x3F {
+		chunkStreamId = uint32(secondByte[0]) + 64
+	} else if chunkStreamIdIndicator == 0x01 {
 		secondByte := make([]byte, 1)
 		_, err := connection.Read(secondByte)
 		if err != nil {
@@ -82,8 +83,9 @@ func ReadBasicHeader(connection *conn.Conn) (*BasicHeader, error) {
 		if err != nil {
 			return nil, err
 		}
-		chunkStreamIdBuffer = binary.BigEndian.AppendUint32(make([]byte, 0), uint32(thirdByte[0])*256+uint32(secondByte[0])+64)[1:]
-		chunkStreamId = binary.BigEndian.Uint32(append([]byte{0x00}, chunkStreamIdBuffer...))
+		chunkStreamId = uint32(secondByte[0]) + uint32(thirdByte[0])*256 + 64
+	} else {
+		chunkStreamId = uint32(chunkStreamIdIndicator)
 	}
 	return &BasicHeader{
 		Fmt:           fmt,

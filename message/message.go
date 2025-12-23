@@ -77,6 +77,7 @@ func NewStreamBeginMessage(messageStreamId uint32) *Message {
 func (message *Message) Send(conn *conn.Conn) (int, error) {
 	bytesSent := 0
 	for _, nChunk := range message.BuildChunks(int(conn.MaxChunkSize)) {
+
 		if conn.UnacknowledgedBytesSent > 0 && conn.PeerWindowAcknowledgementSize > 0 && conn.UnacknowledgedBytesSent >= conn.PeerWindowAcknowledgementSize {
 			select {
 			case clientAcknowledgement := <-conn.Messages:
@@ -87,14 +88,14 @@ func (message *Message) Send(conn *conn.Conn) (int, error) {
 				return 0, errors.New("bandwidth size exceeded")
 			}
 		}
-		n, err := conn.Write(nChunk.Encode())
+		encoded := nChunk.Encode()
+		n, err := conn.Write(encoded)
 		bytesSent += n
 		conn.UnacknowledgedBytesSent += uint32(n)
 		if err != nil {
 			return 0, err
 		}
 	}
-	log.Printf("Message %+v sent: %d bytes", message, bytesSent)
 	return bytesSent, nil
 }
 
@@ -123,7 +124,12 @@ func (message *Message) BuildChunks(chunkSize int) []chunk.Chunk {
 }
 
 func isProtocolControlMessage(messageTypeId uint8) bool {
-	return messageTypeId == TypeSetChunkSize || messageTypeId == TypeAbortMessage || messageTypeId == TypeAcknowledgement || messageTypeId == TypeWindowAcknowledgementSize || messageTypeId == TypeSetPeerBandwidth
+	return messageTypeId == TypeSetChunkSize ||
+		messageTypeId == TypeAbortMessage ||
+		messageTypeId == TypeAcknowledgement ||
+		messageTypeId == TypeWindowAcknowledgementSize ||
+		messageTypeId == TypeSetPeerBandwidth ||
+		messageTypeId == TypeUserControl
 }
 
 func Accept(connection *conn.Conn) (*chunk.Chunk, error) {
@@ -161,7 +167,12 @@ func Accept(connection *conn.Conn) (*chunk.Chunk, error) {
 }
 
 func getNextChunkDataSize(connection *conn.Conn, header *chunk.Header) uint32 {
-	return min(max(header.MessageHeader.MessageLength, connection.CurrentMessage.Length)-connection.CurrentMessage.DataSize(), connection.MaxChunkSize)
+	messageLength := connection.CurrentMessage.Length
+	if header.BasicHeader.Fmt == 0 || header.BasicHeader.Fmt == 1 {
+		messageLength = header.MessageHeader.MessageLength
+	}
+	remainingBytes := messageLength - connection.CurrentMessage.DataSize()
+	return min(remainingBytes, connection.MaxChunkSize)
 }
 
 func handleReceivedChunk(connection *conn.Conn, receivedChunk *chunk.Chunk) {
@@ -188,11 +199,11 @@ func handleReceivedChunk(connection *conn.Conn, receivedChunk *chunk.Chunk) {
 
 func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Message) error {
 	if completedMessage.TypeId == TypeSetChunkSize {
-		connection.MaxChunkSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4]) >> 1
+		connection.MaxChunkSize = binary.BigEndian.Uint32(completedMessage.Data[0:4]) & 0x7FFFFFFF
 	} else if completedMessage.TypeId == TypeAbortMessage {
 		connection.CurrentMessage = nil
 	} else if completedMessage.TypeId == TypeWindowAcknowledgementSize {
-		connection.WindowAcknowledgementSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4])
+		connection.WindowAcknowledgementSize = binary.BigEndian.Uint32(completedMessage.Data[0:4])
 	} else if completedMessage.TypeId == TypeSetPeerBandwidth {
 		connection.PeerWindowAcknowledgementSize = binary.BigEndian.Uint32(connection.CurrentMessage.Data[0:4])
 		windowAcknowledgementSizeMessage := NewWindowAcknowledgementSizeMessage(completedMessage.StreamId, int(connection.PeerWindowAcknowledgementSize))
@@ -201,13 +212,13 @@ func handleCompletedMessage(connection *conn.Conn, completedMessage *conn.Messag
 			return err
 		}
 	} else if completedMessage.TypeId == TypeCommandMessageAmf0 {
-		command, err := amf.DecodeCommand(connection.CurrentMessage.Data)
+		command, err := amf.DecodeCommand(completedMessage.Data)
 		if err != nil {
 			return err
 		}
 		log.Printf("Command received: %s\n", command)
 		if len(command.Parts) > 0 && command.Parts[0] == amf.NewString("connect") {
-			err = doConnectMessageFlow(connection, connection.CurrentMessage.StreamId, err)
+			err = doConnectMessageFlow(connection, completedMessage.StreamId, err)
 			if err != nil {
 				return err
 			}
@@ -246,6 +257,7 @@ func doConnectMessageFlow(connection *conn.Conn, messageStreamId uint32, err err
 		amf.ObjectProperty{Name: "description", Value: amf.NewString("Connection succeeded.")},
 		amf.ObjectProperty{Name: "objectEncoding", Value: amf.NewNumber(0)},
 	)
+
 	resultCommand := amf.NewCommand(amf.NewString("_result"), amf.NewNumber(1), serverProps, infoProps)
 	resultCommandMessage := NewMessage(TypeCommandMessageAmf0, messageStreamId, resultCommand.Encode())
 	resultCommandMessage.ChunkStreamId = 3

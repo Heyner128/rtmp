@@ -28,6 +28,21 @@ func TestStringAndNumberCommandDecode(t *testing.T) {
 	assert.Equal(t, amfCommand.Parts[1], NewNumber(testNumber))
 }
 
+func TestMultipleTypesEncode(t *testing.T) {
+	testString := "test string"
+	testNumber := 1234.5678
+	testObject, _ := generateTestAmfObject()
+	amfString := NewString(testString)
+	amfNumber := NewNumber(testNumber)
+	amfMessage := NewCommand(amfString, amfNumber, testObject)
+	assert.NotNil(t, amfMessage)
+	actualContents := make([]byte, 0)
+	actualContents = append(actualContents, amfString.Encode()...)
+	actualContents = append(actualContents, amfNumber.Encode()...)
+	actualContents = append(actualContents, testObject.Encode()...)
+	assert.Equal(t, amfMessage.Encode(), actualContents)
+}
+
 func TestMultipleTypesDecode(t *testing.T) {
 	testString := "test string"
 	testNumber := 1234.5678
@@ -41,4 +56,16 @@ func TestMultipleTypesDecode(t *testing.T) {
 	assert.Equal(t, amfCommand.Parts[0], NewString(testString))
 	assert.Equal(t, amfCommand.Parts[1], NewNumber(testNumber))
 	assert.Equal(t, amfCommand.Parts[2], NewObject(testObject...))
+}
+
+func TestMultipleObjectsDecode(t *testing.T) {
+	testObject, _ := generateTestAmfObject()
+	testObject2, _ := generateTestAmfObject()
+	bytes := make([]byte, 0)
+	bytes = append(bytes, NewObject(testObject...).Encode()...)
+	bytes = append(bytes, NewObject(testObject2...).Encode()...)
+	amfCommand, _ := DecodeCommand(bytes)
+	assert.NotNil(t, amfCommand)
+	assert.Equal(t, amfCommand.Parts[0], NewObject(testObject...))
+	assert.Equal(t, amfCommand.Parts[1], NewObject(testObject2...))
 }
