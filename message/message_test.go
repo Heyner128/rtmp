@@ -50,7 +50,7 @@ func TestSetChunkSizeAndMultiChunkRandomMessageReceived(t *testing.T) {
 func TestSetChunkSizeMessageReceived(t *testing.T) {
 	rtmpServer, clientConn := testutil.StartTestingServerWithHandshake(t)
 	newSize := uint32(1024)
-	testMessage := message.NewMessage(message.TypeSetChunkSize, rand.Uint32(), binary.BigEndian.AppendUint32(make([]byte, 0), newSize<<1))
+	testMessage := message.NewMessage(message.TypeSetChunkSize, rand.Uint32(), binary.BigEndian.AppendUint32(make([]byte, 0), newSize&0x7FFFFFFF))
 	_, err := testMessage.Send(clientConn)
 	assert.Nil(t, err)
 	serverConn := <-rtmpServer.Connections
