@@ -18,6 +18,7 @@ func (message *Message) DataSize() uint32 {
 
 type Conn struct {
 	Conn                          net.Conn
+	PeerMaxChunkSize              uint32
 	MaxChunkSize                  uint32
 	NetworkTimeout                time.Duration
 	CurrentMessage                *Message
@@ -29,14 +30,15 @@ type Conn struct {
 	Errors                        chan error
 }
 
-func NewConn(conn net.Conn, maxChunkSize uint32, networkTimeout time.Duration) (*Conn, error) {
+func NewConn(conn net.Conn, defaultMaxChunkSize uint32, networkTimeout time.Duration) (*Conn, error) {
 	newConn := &Conn{
 		Conn:                          conn,
-		MaxChunkSize:                  maxChunkSize,
+		PeerMaxChunkSize:              defaultMaxChunkSize,
+		MaxChunkSize:                  defaultMaxChunkSize,
 		NetworkTimeout:                networkTimeout,
 		CurrentMessage:                &Message{},
 		PeerWindowAcknowledgementSize: 2 * 1024,
-		Messages:                      make(chan *Message, 1),
+		Messages:                      make(chan *Message),
 		Errors:                        make(chan error),
 	}
 	if newConn.Conn != nil {

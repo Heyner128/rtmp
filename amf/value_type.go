@@ -17,6 +17,8 @@ func decodeNextValueType(bytes []byte) (int, ValueType) {
 		length, valueType = decodeNextBoolean(bytes)
 	case objectMarker:
 		length, valueType, _ = decodeNextObject(bytes)
+	case nullMarker:
+		length, valueType = decodeNextNull()
 	default:
 		return 0, nil
 	}

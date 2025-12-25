@@ -17,7 +17,7 @@ func AcceptTestChunk(t *testing.T) (string, chan chunk.Chunk) {
 
 	connection, _ := conn.NewConn(nil, 128, 10*time.Second)
 
-	chunks := make(chan chunk.Chunk)
+	chunks := make(chan chunk.Chunk, 100)
 
 	go func() {
 		for {

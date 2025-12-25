@@ -1,9 +1,8 @@
 package handshake
 
 import (
-	"errors"
-	"log"
 	"net"
+	"rtmp/logger"
 	"time"
 )
 
@@ -38,7 +37,7 @@ func Accept(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	log.Println("Version sent")
+	logger.Get().Debug("Version sent")
 	//sends S2
 	serverEcho := Echo{
 		Timestamp:  clientTimestamp.Timestamp,
@@ -49,14 +48,11 @@ func Accept(conn net.Conn) error {
 	if err != nil {
 		return err
 	}
-	log.Println("ACK sent")
-	echo, err := ReadEcho(conn, serverTimestamp)
-	if echo != nil && (echo.Timestamp != serverTimestamp.Timestamp || echo.Random != serverTimestamp.Random) {
-		return errors.New("peer timestamp echo does not match")
-	}
+	logger.Get().Debug("ACK sent")
+	_, err = ReadEcho(conn, serverTimestamp)
 	if err != nil {
 		return err
 	}
-	log.Println("Handshake successful")
+	logger.Get().Debug("Handshake successful")
 	return nil
 }

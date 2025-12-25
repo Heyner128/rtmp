@@ -48,35 +48,46 @@ func TestType1Chunk(t *testing.T) {
 func TestType2Chunk(t *testing.T) {
 	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
-	basicHeader := chunk.NewBasicHeader(uint8(2), uint32(2))
+	// send type 1 first to set length
+	basicHeader := chunk.NewBasicHeader(uint8(1), uint32(2))
 	messageHeader := chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
 	header := chunk.NewHeader(*basicHeader, *messageHeader, uint32(0))
 	testChunk := chunk.NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
 	_, err := conn.Write(testChunk.Encode())
 	assert.Nil(t, err)
+	// send type 2
+	basicHeader = chunk.NewBasicHeader(uint8(2), uint32(2))
+	messageHeader = chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
+	header = chunk.NewHeader(*basicHeader, *messageHeader, uint32(0))
+	testChunk = chunk.NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
+	_, err = conn.Write(testChunk.Encode())
+	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)
 	assert.Equal(t, chunkReceived.Header.MessageHeader.Timestamp, testChunk.Header.MessageHeader.Timestamp)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.MessageLength, testChunk.Header.MessageHeader.MessageLength)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.MessageTypeId, testChunk.Header.MessageHeader.MessageTypeId)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.MessageStreamId, testChunk.Header.MessageHeader.MessageStreamId)
+	assert.Equal(t, chunkReceived.Header.MessageHeader.MessageLength, testChunk.Header.MessageHeader.MessageLength)
 }
 
 func TestType3Chunk(t *testing.T) {
 	address, chunks := testutil.AcceptTestChunk(t)
 	conn, _ := net.Dial("tcp", address)
-	basicHeader := chunk.NewBasicHeader(uint8(3), uint32(2))
+	// send type 1 first to set length
+	basicHeader := chunk.NewBasicHeader(uint8(1), uint32(2))
 	messageHeader := chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
 	header := chunk.NewHeader(*basicHeader, *messageHeader, uint32(0))
 	testChunk := chunk.NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
 	_, err := conn.Write(testChunk.Encode())
 	assert.Nil(t, err)
+	// send type 3
+	basicHeader = chunk.NewBasicHeader(uint8(3), uint32(2))
+	messageHeader = chunk.NewMessageHeader(uint32(12), uint32(32), uint8(1), uint32(123456))
+	header = chunk.NewHeader(*basicHeader, *messageHeader, uint32(0))
+	testChunk = chunk.NewChunk(*header, binary.BigEndian.AppendUint32(make([]byte, 0), uint32(256)))
+	_, err = conn.Write(testChunk.Encode())
+	assert.Nil(t, err)
 	chunkReceived := <-chunks
 	assert.NotNil(t, chunkReceived)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.Timestamp, testChunk.Header.MessageHeader.Timestamp)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.MessageLength, testChunk.Header.MessageHeader.MessageLength)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.MessageTypeId, testChunk.Header.MessageHeader.MessageTypeId)
-	assert.NotEqual(t, chunkReceived.Header.MessageHeader.MessageStreamId, testChunk.Header.MessageHeader.MessageStreamId)
+	assert.Equal(t, chunkReceived.Header.MessageHeader.Timestamp, testChunk.Header.MessageHeader.Timestamp)
 }
 
 func TestChunkExtendedTimestamp(t *testing.T) {

@@ -72,7 +72,7 @@ func ReadBasicHeader(connection *conn.Conn) (*BasicHeader, error) {
 			return nil, err
 		}
 		chunkStreamId = uint32(secondByte[0]) + 64
-	} else if chunkStreamIdIndicator == 0x01 {
+	} else if chunkStreamIdIndicator == 0x3F {
 		secondByte := make([]byte, 1)
 		_, err := connection.Read(secondByte)
 		if err != nil {

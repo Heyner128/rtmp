@@ -2,6 +2,7 @@ package chunk
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 type Chunk struct {
@@ -27,6 +28,25 @@ func (chunk *Chunk) Encode() []byte {
 	return buffer
 }
 
+func (chunk *Chunk) String() string {
+	basicHeader := chunk.Header.BasicHeader
+	messageHeader := chunk.Header.MessageHeader
+
+	res := fmt.Sprintf("chunk fmt: %d - chunk stream id: %d", basicHeader.Fmt, basicHeader.ChunkStreamId)
+
+	if basicHeader.Fmt <= 2 {
+		res += fmt.Sprintf(" - message timestamp: %d", messageHeader.Timestamp)
+	}
+	if basicHeader.Fmt <= 1 {
+		res += fmt.Sprintf(" - message length: %d - message type id: %d", messageHeader.MessageLength, messageHeader.MessageTypeId)
+	}
+	if basicHeader.Fmt == 0 {
+		res += fmt.Sprintf(" - message stream id: %d", messageHeader.MessageStreamId)
+	}
+	res += fmt.Sprintf(" - chunk data size: %d", len(chunk.Data))
+	return res
+}
+
 func (chunk *Chunk) encodeBasicHeader() []byte {
 	basicHeader := make([]byte, 0)
 	if chunk.Header.BasicHeader.ChunkStreamId >= 2 && chunk.Header.BasicHeader.ChunkStreamId <= 63 {
@@ -35,9 +55,8 @@ func (chunk *Chunk) encodeBasicHeader() []byte {
 		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x00)
 		basicHeader = append(basicHeader, uint8(chunk.Header.BasicHeader.ChunkStreamId-64))
 	} else if chunk.Header.BasicHeader.ChunkStreamId >= 320 && chunk.Header.BasicHeader.ChunkStreamId <= 65599 {
-		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x01)
-		basicHeader = append(basicHeader, uint8((chunk.Header.BasicHeader.ChunkStreamId-64)&0xFF))
-		basicHeader = append(basicHeader, uint8((chunk.Header.BasicHeader.ChunkStreamId-64)>>8))
+		basicHeader = append(basicHeader, chunk.Header.BasicHeader.Fmt<<6|0x3F)
+		basicHeader = binary.BigEndian.AppendUint16(basicHeader, uint16(chunk.Header.BasicHeader.ChunkStreamId-64))
 	}
 	return basicHeader
 }

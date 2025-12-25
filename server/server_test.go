@@ -40,6 +40,7 @@ func TestServerNetworkTimeout(t *testing.T) {
 	_, err := conn.Write([]byte("test"))
 	assert.Nil(t, err)
 	serverConn := <-testServer.Connections
+	serverConn.Errors = make(chan error, 1)
 	time.Sleep(2 * time.Second)
 	err = <-serverConn.Errors
 	assert.NotNil(t, err)

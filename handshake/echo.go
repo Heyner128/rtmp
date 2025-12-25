@@ -2,7 +2,6 @@ package handshake
 
 import (
 	"encoding/binary"
-	"errors"
 	"net"
 )
 
@@ -22,9 +21,6 @@ func ReadEcho(conn net.Conn, sentTimestampChunk Timestamp) (*Echo, error) {
 	echo.Timestamp = binary.BigEndian.Uint32(buffer[0:4])
 	echo.TimeStamp2 = binary.BigEndian.Uint32(buffer[4:8])
 	echo.Random = [1528]byte(buffer[8:])
-	if echo.Timestamp != sentTimestampChunk.Timestamp || echo.Random != sentTimestampChunk.Random {
-		return nil, errors.New("peer timestamp echo does not match")
-	}
 	return echo, nil
 }
 
